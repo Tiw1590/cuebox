@@ -24,8 +24,8 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
     final raw = prefs.getString(_kShowKey);
     if (raw != null) {
       try {
-        final lib = ShowLibrary.fromJson(
-          jsonDecode(raw) as Map<String, dynamic>,
+        final lib = _ensureUniqueIds(
+          ShowLibrary.fromJson(jsonDecode(raw) as Map<String, dynamic>),
         );
         if (lib.shows.isNotEmpty) return lib;
       } catch (_) {
@@ -39,9 +39,84 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
   ShowLibrary? get _current => state.valueOrNull;
 
   Future<void> _set(ShowLibrary lib) async {
-    state = AsyncData(lib);
+    final normalized = _ensureUniqueIds(lib);
+    state = AsyncData(normalized);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kShowKey, jsonEncode(lib.toJson()));
+    await prefs.setString(_kShowKey, jsonEncode(normalized.toJson()));
+  }
+
+  /// 修复历史数据里可能重复的 id（批量导入曾因微秒时间戳相同而撞 id），
+  /// 并保证每次写入前 id 全局唯一。
+  ShowLibrary _ensureUniqueIds(ShowLibrary lib) {
+    final used = <String>{};
+    var seq = 0;
+    String fresh(String prefix) {
+      String id;
+      do {
+        id = '$prefix${DateTime.now().microsecondsSinceEpoch}_${seq++}';
+      } while (used.contains(id));
+      used.add(id);
+      return id;
+    }
+
+    String fix(String prefix, String id) {
+      if (id.isNotEmpty && !used.contains(id)) {
+        used.add(id);
+        return id;
+      }
+      return fresh(prefix);
+    }
+
+    return ShowLibrary(
+      shows: lib.shows.map((s) {
+        return Show(
+          id: fix('show', s.id),
+          name: s.name,
+          kind: s.kind,
+          locked: s.locked,
+          defaultVolume: s.defaultVolume,
+          defaultFadeInMs: s.defaultFadeInMs,
+          defaultFadeOutMs: s.defaultFadeOutMs,
+          defaultLoop: s.defaultLoop,
+          cues: s.cues
+              .map(
+                (c) => Cue(
+                  id: fix('cue', c.id),
+                  name: c.name,
+                  uri: c.uri,
+                  note: c.note,
+                  startMs: c.startMs,
+                  endMs: c.endMs,
+                  loop: c.loop,
+                  volume: c.volume,
+                  fadeInMs: c.fadeInMs,
+                  fadeOutMs: c.fadeOutMs,
+                ),
+              )
+              .toList(),
+          cartSlots: s.cartSlots
+              .map(
+                (c) => CartSlot(
+                  id: fix('cart', c.id),
+                  name: c.name,
+                  uri: c.uri,
+                  note: c.note,
+                  startMs: c.startMs,
+                  endMs: c.endMs,
+                  solo: c.solo,
+                  loop: c.loop,
+                  volume: c.volume,
+                  fadeInMs: c.fadeInMs,
+                  fadeOutMs: c.fadeOutMs,
+                  shortcutKeyId: c.shortcutKeyId,
+                  shortcutLabel: c.shortcutLabel,
+                ),
+              )
+              .toList(),
+        );
+      }).toList(),
+      activeShowId: lib.activeShowId,
+    );
   }
 
   /// 对指定工程做一次修改；缺省用当前激活工程。
@@ -310,11 +385,11 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
 
   /// 清空当前工程的 Cue 与 Pad。
   Future<void> clearAll() {
-    return _mutateShow(
-      (show) => show.copyWith(cues: [], cartSlots: []),
-    );
+    return _mutateShow((show) => show.copyWith(cues: [], cartSlots: []));
   }
 
+  static int _idSeq = 0;
+
   static String _genId(String prefix) =>
-      '$prefix${DateTime.now().microsecondsSinceEpoch}';
+      '$prefix${DateTime.now().microsecondsSinceEpoch}_${_idSeq++}';
 }
