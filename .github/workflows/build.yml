@@ -6,6 +6,10 @@ on:
     branches: [main]    # push 到 main 也触发
   workflow_dispatch:    # 支持手动触发
 
+# 需要写权限来发布 GitHub Release
+permissions:
+  contents: write
+
 jobs:
   # ---------- Android ----------
   android:
@@ -100,4 +104,15 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          generate_release_notes: true
+          body: |
+            ## CueBox v${{ github.ref_name }}
+
+            🎛️ 现场表演音效 Cue 播放器
+
+            ### 平台产物
+            - 📱 **Android** — `CueBox-android.apk`
+            - 🍎 **iOS** (未签名) — `CueBox-ios-unsigned.zip`
+            - 💻 **macOS** — `CueBox-macos.zip`
+            - 🖥️ **Windows** — `CueBox-windows.zip`
+
+            下载对应平台安装包即可使用。
