@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,6 +74,18 @@ void main() {
   });
 
   testWidgets('点击 Cue 只选中，编辑参数菜单才打开面板', (tester) async {
+    // 测试环境没有 macOS 波形通道，mock 成无波形。
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('cuebox/waveform'),
+      (call) async => null,
+    );
+    addTearDown(() {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('cuebox/waveform'),
+        null,
+      );
+    });
+
     final container = ProviderContainer();
     addTearDown(container.dispose);
 

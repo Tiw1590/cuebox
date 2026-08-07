@@ -237,7 +237,12 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
         return null;
       }),
     );
-    final peaks = await loadWaveform(uri);
+    List<double>? peaks;
+    try {
+      peaks = await loadWaveform(uri);
+    } catch (_) {
+      peaks = null;
+    }
     if (mounted) {
       setState(() {
         _peaks = peaks;

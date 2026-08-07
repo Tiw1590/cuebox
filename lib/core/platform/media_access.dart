@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'mac_waveform_channel.dart';
 import 'saf_channel.dart';
 
 /// 素材池中的一个条目（文件夹或音频文件），与平台无关。
@@ -93,7 +94,11 @@ class LocalMediaAccess implements MediaAccess {
 
   @override
   Future<List<double>?> extractWaveform(String uri, int peakCount) async {
-    // 桌面端兜底：仅支持未压缩 WAV（16-bit PCM）。
+    // macOS：AVFoundation 解码（flac/mp3/m4a/wav 等真实波形）。
+    if (Platform.isMacOS) {
+      return MacWaveformChannel.extractWaveform(uri, peakCount);
+    }
+    // Windows/Linux 兜底：仅支持未压缩 WAV（16-bit PCM）。
     final file = File(uri);
     if (!file.existsSync()) return null;
     try {
