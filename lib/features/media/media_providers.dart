@@ -38,7 +38,6 @@ class MediaRootNotifier extends AsyncNotifier<MediaRoot?> {
       state = AsyncData(MediaRoot(uri: uri, name: name));
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
-      rethrow;
     }
   }
 
