@@ -282,6 +282,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final audioFiles = files
         .where((f) => f.path.isNotEmpty && isAudioPath(f.path))
         .toList();
+    final log = StringBuffer('=== drop ${DateTime.now()} ===\n');
+    log.writeln('received ${files.length} items, audio ${audioFiles.length}');
     if (audioFiles.isEmpty) {
       _showSnack('未发现音频文件');
       return;
@@ -294,20 +296,41 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       rootPath = ref.read(mediaRootProvider).valueOrNull?.uri;
     }
     rootPath ??= LocalMediaAccess.defaultRootPath();
+    log.writeln('rootPath: $rootPath');
     try {
       Directory(rootPath).createSync(recursive: true);
-    } catch (_) {}
+    } catch (e) {
+      log.writeln('createRoot FAIL: $e');
+    }
 
     final imported = <({String uri, String name})>[];
     for (final f in audioFiles) {
+      log.writeln(
+        'file: name="${f.name}" path="${f.path}" exists=${File(f.path).existsSync()}',
+      );
+      // 同名且大小一致 → 复用已有文件，避免重复复制。
+      final existing = File('$rootPath${Platform.pathSeparator}${f.name}');
+      if (existing.existsSync()) {
+        try {
+          if (existing.lengthSync() == File(f.path).lengthSync()) {
+            imported.add((uri: existing.path, name: f.name));
+            log.writeln('  -> reused ${existing.path}');
+            continue;
+          }
+        } catch (_) {}
+      }
       final dest = _uniquePath(rootPath, f.name);
       try {
         await File(f.path).copy(dest);
         imported.add((uri: dest, name: f.name));
-      } catch (_) {}
+        log.writeln('  -> copied $dest');
+      } catch (e) {
+        log.writeln('  -> COPY FAIL: $e');
+      }
     }
     if (imported.isEmpty) {
       _showSnack('导入失败');
+      _writeDropLog(log.toString());
       return;
     }
 
@@ -322,6 +345,19 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     _showSnack(
       '已导入 ${imported.length} 个音频到 ${show?.kind == ShowKind.cue ? 'Cue 列表' : 'Pad'}',
     );
+    try {
+      await ref.read(mediaBrowseProvider.notifier).refresh();
+    } catch (_) {}
+    _writeDropLog(log.toString());
+  }
+
+  void _writeDropLog(String content) {
+    try {
+      final home = Platform.environment['HOME'] ?? '';
+      final logFile = File('$home/Library/Logs/CueBox/drop.log');
+      logFile.parent.createSync(recursive: true);
+      logFile.writeAsStringSync(content, mode: FileMode.append);
+    } catch (_) {}
   }
 
   String _uniquePath(String dir, String name) {
