@@ -63,7 +63,7 @@ final mediaBrowseProvider =
 
 class MediaBrowseNotifier extends Notifier<MediaBrowseState> {
   @override
-  MediaBrowseState build() => const MediaBrowseState();
+  MediaBrowseState build() => MediaBrowseState();
 
   void reset() => state = const MediaBrowseState();
 

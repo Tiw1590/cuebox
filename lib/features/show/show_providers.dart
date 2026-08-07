@@ -8,8 +8,9 @@ import 'show_models.dart';
 const _kShowKey = 'show.data';
 
 /// 工程库（多个 Cue / Cart 工程 + 当前激活项），自动持久化到本机。
-final showProvider =
-    AsyncNotifierProvider<ShowNotifier, ShowLibrary>(ShowNotifier.new);
+final showProvider = AsyncNotifierProvider<ShowNotifier, ShowLibrary>(
+  ShowNotifier.new,
+);
 
 /// 当前激活的工程，页面直接 watch 它。
 final activeShowProvider = Provider<AsyncValue<Show>>((ref) {
@@ -23,8 +24,9 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
     final raw = prefs.getString(_kShowKey);
     if (raw != null) {
       try {
-        final lib =
-            ShowLibrary.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+        final lib = ShowLibrary.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>,
+        );
         if (lib.shows.isNotEmpty) return lib;
       } catch (_) {
         // 数据损坏时回退到默认工程。
@@ -56,10 +58,12 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
             orElse: () => lib.activeShow,
           );
     final next = change(target);
-    await _set(ShowLibrary(
-      shows: lib.shows.map((s) => s.id == target.id ? next : s).toList(),
-      activeShowId: lib.activeShowId,
-    ));
+    await _set(
+      ShowLibrary(
+        shows: lib.shows.map((s) => s.id == target.id ? next : s).toList(),
+        activeShowId: lib.activeShowId,
+      ),
+    );
   }
 
   // ---------- 工程管理 ----------
@@ -70,10 +74,12 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
   }) async {
     final lib = _current;
     final show = Show(name: name, kind: kind);
-    await _set(ShowLibrary(
-      shows: [...(lib?.shows ?? const <Show>[]), show],
-      activeShowId: show.id,
-    ));
+    await _set(
+      ShowLibrary(
+        shows: [...(lib?.shows ?? <Show>[]), show],
+        activeShowId: show.id,
+      ),
+    );
   }
 
   Future<void> renameShow(String id, String name) {
@@ -125,82 +131,168 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
   // ---------- 当前工程的 Cue / Cart 操作 ----------
 
   Future<void> addCue({required String uri, required String name}) {
-    return _mutateShow((show) => show.copyWith(
-          cues: [
-            ...show.cues,
+    return _mutateShow(
+      (show) => show.copyWith(
+        cues: [
+          ...show.cues,
+          Cue(
+            id: _genId('cue'),
+            name: name,
+            uri: uri,
+            volume: show.defaultVolume,
+            fadeInMs: show.defaultFadeInMs,
+            fadeOutMs: show.defaultFadeOutMs,
+            loop: show.defaultLoop,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> addCues(List<({String uri, String name})> items) {
+    return _mutateShow(
+      (show) => show.copyWith(
+        cues: [
+          ...show.cues,
+          for (final item in items)
             Cue(
               id: _genId('cue'),
-              name: name,
-              uri: uri,
+              name: item.name,
+              uri: item.uri,
               volume: show.defaultVolume,
               fadeInMs: show.defaultFadeInMs,
               fadeOutMs: show.defaultFadeOutMs,
               loop: show.defaultLoop,
             ),
-          ],
-        ));
+        ],
+      ),
+    );
   }
 
-  Future<void> addCues(List<({String uri, String name})> items) {
-    return _mutateShow((show) => show.copyWith(
-          cues: [
-            ...show.cues,
-            for (final item in items)
-              Cue(
-                id: _genId('cue'),
-                name: item.name,
-                uri: item.uri,
-                volume: show.defaultVolume,
-                fadeInMs: show.defaultFadeInMs,
-                fadeOutMs: show.defaultFadeOutMs,
-                loop: show.defaultLoop,
-              ),
-          ],
-        ));
+  Future<void> addCueWithParams({
+    required String uri,
+    required String name,
+    String note = '',
+    double volume = 1.0,
+    int fadeInMs = 20,
+    int fadeOutMs = 150,
+    bool loop = false,
+    int startMs = 0,
+    int endMs = 0,
+  }) {
+    return _mutateShow(
+      (show) => show.copyWith(
+        cues: [
+          ...show.cues,
+          Cue(
+            id: _genId('cue'),
+            name: name,
+            uri: uri,
+            note: note,
+            volume: volume,
+            fadeInMs: fadeInMs,
+            fadeOutMs: fadeOutMs,
+            loop: loop,
+            startMs: startMs,
+            endMs: endMs,
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> addCartSlot({required String uri, required String name}) {
-    return _mutateShow((show) => show.copyWith(
-          cartSlots: [
-            ...show.cartSlots,
-            CartSlot(id: _genId('cart'), name: name, uri: uri),
-          ],
-        ));
+    return _mutateShow(
+      (show) => show.copyWith(
+        cartSlots: [
+          ...show.cartSlots,
+          CartSlot(id: _genId('cart'), name: name, uri: uri),
+        ],
+      ),
+    );
   }
 
   Future<void> addCartSlots(List<({String uri, String name})> items) {
-    return _mutateShow((show) => show.copyWith(
-          cartSlots: [
-            ...show.cartSlots,
-            for (final item in items)
-              CartSlot(id: _genId('cart'), name: item.name, uri: item.uri),
-          ],
-        ));
+    return _mutateShow(
+      (show) => show.copyWith(
+        cartSlots: [
+          ...show.cartSlots,
+          for (final item in items)
+            CartSlot(id: _genId('cart'), name: item.name, uri: item.uri),
+        ],
+      ),
+    );
+  }
+
+  Future<void> addCartSlotWithParams({
+    required String uri,
+    required String name,
+    String note = '',
+    double volume = 1.0,
+    int fadeInMs = 20,
+    int fadeOutMs = 150,
+    bool loop = false,
+    int startMs = 0,
+    int endMs = 0,
+    bool solo = true,
+    int? shortcutKeyId,
+    String? shortcutLabel,
+  }) {
+    return _mutateShow(
+      (show) => show.copyWith(
+        cartSlots: [
+          ...show.cartSlots,
+          CartSlot(
+            id: _genId('cart'),
+            name: name,
+            uri: uri,
+            note: note,
+            volume: volume,
+            fadeInMs: fadeInMs,
+            fadeOutMs: fadeOutMs,
+            loop: loop,
+            startMs: startMs,
+            endMs: endMs,
+            solo: solo,
+            shortcutKeyId: shortcutKeyId,
+            shortcutLabel: shortcutLabel,
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> updateCue(Cue cue) {
-    return _mutateShow((show) => show.copyWith(
-          cues: show.cues.map((c) => c.id == cue.id ? cue : c).toList(),
-        ));
+    return _mutateShow(
+      (show) => show.copyWith(
+        cues: show.cues.map((c) => c.id == cue.id ? cue : c).toList(),
+      ),
+    );
   }
 
   Future<void> updateCartSlot(CartSlot slot) {
-    return _mutateShow((show) => show.copyWith(
-          cartSlots:
-              show.cartSlots.map((c) => c.id == slot.id ? slot : c).toList(),
-        ));
+    return _mutateShow(
+      (show) => show.copyWith(
+        cartSlots: show.cartSlots
+            .map((c) => c.id == slot.id ? slot : c)
+            .toList(),
+      ),
+    );
   }
 
   Future<void> removeCue(String id) {
-    return _mutateShow((show) => show.copyWith(
-          cues: show.cues.where((c) => c.id != id).toList(),
-        ));
+    return _mutateShow(
+      (show) =>
+          show.copyWith(cues: show.cues.where((c) => c.id != id).toList()),
+    );
   }
 
   Future<void> removeCartSlot(String id) {
-    return _mutateShow((show) => show.copyWith(
-          cartSlots: show.cartSlots.where((c) => c.id != id).toList(),
-        ));
+    return _mutateShow(
+      (show) => show.copyWith(
+        cartSlots: show.cartSlots.where((c) => c.id != id).toList(),
+      ),
+    );
   }
 
   Future<void> moveCue(String id, int delta) {
@@ -216,10 +308,10 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
     });
   }
 
-  /// 清空当前工程的 Cue 与 Cart 格块。
+  /// 清空当前工程的 Cue 与 Pad。
   Future<void> clearAll() {
     return _mutateShow(
-      (show) => show.copyWith(cues: const [], cartSlots: const []),
+      (show) => show.copyWith(cues: [], cartSlots: []),
     );
   }
 

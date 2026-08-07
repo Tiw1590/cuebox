@@ -1,122 +1,220 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 
-/// CueBox 设计令牌：统一的颜色、渐变与圆角，页面和组件都从这里取。
-abstract final class CueBoxColors {
-  static const Color background = Color(0xFF0A0E13);
-  static const Color backgroundTop = Color(0xFF0E1520);
-  static const Color surface = Color(0xFF121A24);
-  static const Color surfaceHigh = Color(0xFF1A2531);
-  static const Color surfacePressed = Color(0xFF22303F);
+/// 一套完整的配色。
+class CueBoxPalette {
+  const CueBoxPalette({
+    required this.background,
+    required this.backgroundTop,
+    required this.surface,
+    required this.surfaceHigh,
+    required this.surfacePressed,
+    required this.primary,
+    required this.primaryDeep,
+    required this.secondary,
+    required this.amber,
+    required this.danger,
+    required this.success,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textFaint,
+    required this.border,
+    required this.borderStrong,
+    required this.navBar,
+  });
 
-  static const Color primary = Color(0xFF38E1FF);
-  static const Color primaryDeep = Color(0xFF0EA5D8);
-  static const Color secondary = Color(0xFFA78BFA);
-  static const Color amber = Color(0xFFFFC24B);
-  static const Color danger = Color(0xFFFF6B6B);
-  static const Color success = Color(0xFF4ADE80);
-
-  static const Color textPrimary = Color(0xFFE8EEF5);
-  static const Color textSecondary = Color(0xFF93A6BB);
-  static const Color textFaint = Color(0xFF5F7186);
-  static const Color border = Color(0x1FFFFFFF);
-  static const Color borderStrong = Color(0x2FFFFFFF);
-
-  static const LinearGradient accentGradient = LinearGradient(
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-    colors: [primaryDeep, primary, secondary],
-  );
-
-  static const LinearGradient backgroundGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [backgroundTop, background],
-  );
-
-  static const BoxShadow glow = BoxShadow(
-    color: Color(0x5538E1FF),
-    blurRadius: 28,
-    spreadRadius: 0,
-    offset: Offset(0, 8),
-  );
+  final Color background;
+  final Color backgroundTop;
+  final Color surface;
+  final Color surfaceHigh;
+  final Color surfacePressed;
+  final Color primary;
+  final Color primaryDeep;
+  final Color secondary;
+  final Color amber;
+  final Color danger;
+  final Color success;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textFaint;
+  final Color border;
+  final Color borderStrong;
+  final Color navBar;
 }
 
-/// CueBox 现代深色主题：舞台灯光风格，高对比、大圆角、柔和辉光。
-ThemeData buildCueBoxTheme() {
+const _darkPalette = CueBoxPalette(
+  background: Color(0xFF0A0E13),
+  backgroundTop: Color(0xFF0E1520),
+  surface: Color(0xFF121A24),
+  surfaceHigh: Color(0xFF1A2531),
+  surfacePressed: Color(0xFF22303F),
+  primary: Color(0xFF38E1FF),
+  primaryDeep: Color(0xFF0EA5D8),
+  secondary: Color(0xFFA78BFA),
+  amber: Color(0xFFFFC24B),
+  danger: Color(0xFFFF6B6B),
+  success: Color(0xFF4ADE80),
+  textPrimary: Color(0xFFE8EEF5),
+  textSecondary: Color(0xFF93A6BB),
+  textFaint: Color(0xFF5F7186),
+  border: Color(0x1FFFFFFF),
+  borderStrong: Color(0x2FFFFFFF),
+  navBar: Color(0xFF0D131B),
+);
+
+const _lightPalette = CueBoxPalette(
+  background: Color(0xFFF4F6FA),
+  backgroundTop: Color(0xFFE9EEF6),
+  surface: Color(0xFFFFFFFF),
+  surfaceHigh: Color(0xFFF0F3F8),
+  surfacePressed: Color(0xFFE2E8F0),
+  primary: Color(0xFF0E9FD8),
+  primaryDeep: Color(0xFF0B7FB0),
+  secondary: Color(0xFF7C5CFF),
+  amber: Color(0xFFE8A020),
+  danger: Color(0xFFE5484D),
+  success: Color(0xFF2FA84F),
+  textPrimary: Color(0xFF121826),
+  textSecondary: Color(0xFF55657A),
+  textFaint: Color(0xFF8A99AC),
+  border: Color(0x14000000),
+  borderStrong: Color(0x26000000),
+  navBar: Color(0xFFFFFFFF),
+);
+
+bool _dark = true;
+
+/// 设置当前明暗（由主题控制器调用，页面取色用）。
+void setCueBoxBrightness({required bool dark}) {
+  _dark = dark;
+}
+
+CueBoxPalette get _palette => _dark ? _darkPalette : _lightPalette;
+
+/// CueBox 设计令牌：深/浅两套调色板，随主题切换动态取色。
+abstract final class CueBoxColors {
+  static Color get background => _palette.background;
+  static Color get backgroundTop => _palette.backgroundTop;
+  static Color get surface => _palette.surface;
+  static Color get surfaceHigh => _palette.surfaceHigh;
+  static Color get surfacePressed => _palette.surfacePressed;
+
+  static Color get primary => _palette.primary;
+  static Color get primaryDeep => _palette.primaryDeep;
+  static Color get secondary => _palette.secondary;
+  static Color get amber => _palette.amber;
+  static Color get danger => _palette.danger;
+  static Color get success => _palette.success;
+
+  static Color get textPrimary => _palette.textPrimary;
+  static Color get textSecondary => _palette.textSecondary;
+  static Color get textFaint => _palette.textFaint;
+  static Color get border => _palette.border;
+  static Color get borderStrong => _palette.borderStrong;
+
+  static LinearGradient get accentGradient => LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [primaryDeep, primary, secondary],
+      );
+
+  static LinearGradient get backgroundGradient => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [backgroundTop, background],
+      );
+
+  static BoxShadow get glow => BoxShadow(
+        color: primary.withValues(alpha: 0.33),
+        blurRadius: 28,
+        spreadRadius: 0,
+        offset: Offset(0, 8),
+      );
+}
+
+ThemeData _buildTheme(CueBoxPalette palette) {
+  final dark = palette == _darkPalette;
   final colorScheme = ColorScheme.fromSeed(
-    seedColor: CueBoxColors.primary,
-    brightness: Brightness.dark,
+    seedColor: palette.primary,
+    brightness: dark ? Brightness.dark : Brightness.light,
   ).copyWith(
-    primary: CueBoxColors.primary,
-    onPrimary: const Color(0xFF002A36),
-    secondary: CueBoxColors.secondary,
-    surface: CueBoxColors.surface,
-    surfaceContainerHighest: CueBoxColors.surfaceHigh,
-    onSurface: CueBoxColors.textPrimary,
-    onSurfaceVariant: CueBoxColors.textSecondary,
-    outline: CueBoxColors.borderStrong,
-    error: CueBoxColors.danger,
+    primary: palette.primary,
+    onPrimary: Color(0xFF002A36),
+    secondary: palette.secondary,
+    surface: palette.surface,
+    surfaceContainerHighest: palette.surfaceHigh,
+    onSurface: palette.textPrimary,
+    onSurfaceVariant: palette.textSecondary,
+    outline: palette.borderStrong,
+    error: palette.danger,
   );
 
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
+    brightness: dark ? Brightness.dark : Brightness.light,
     colorScheme: colorScheme,
-    scaffoldBackgroundColor: CueBoxColors.background,
+    scaffoldBackgroundColor: palette.background,
     splashFactory: InkSparkle.splashFactory,
-    fontFamilyFallback: const ['PingFang SC', 'Noto Sans CJK SC'],
+    fontFamilyFallback: ['PingFang SC', 'Noto Sans CJK SC'],
 
-    textTheme: const TextTheme(
+    textTheme: TextTheme(
       headlineMedium: TextStyle(
         fontSize: 26,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.3,
+        color: palette.textPrimary,
       ),
       titleLarge: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.2,
+        color: palette.textPrimary,
       ),
       titleMedium: TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w600,
+        color: palette.textPrimary,
       ),
-      bodyLarge: TextStyle(fontSize: 15, height: 1.45),
-      bodyMedium: TextStyle(fontSize: 13.5, height: 1.4),
-      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      bodyLarge: TextStyle(fontSize: 15, height: 1.45, color: palette.textPrimary),
+      bodyMedium:
+          TextStyle(fontSize: 13.5, height: 1.4, color: palette.textPrimary),
+      labelLarge: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: palette.textPrimary,
+      ),
     ),
 
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
-        color: CueBoxColors.textPrimary,
+        color: palette.textPrimary,
         fontSize: 20,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.2,
       ),
-      iconTheme: IconThemeData(color: CueBoxColors.textPrimary),
-      actionsIconTheme: IconThemeData(color: CueBoxColors.textPrimary),
+      iconTheme: IconThemeData(color: palette.textPrimary),
+      actionsIconTheme: IconThemeData(color: palette.textPrimary),
     ),
 
     cardTheme: CardThemeData(
-      color: CueBoxColors.surface,
+      color: palette.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: CueBoxColors.border),
+        side: BorderSide(color: palette.border),
       ),
     ),
 
     navigationBarTheme: NavigationBarThemeData(
       height: 68,
-      backgroundColor: const Color(0xFF0D131B),
+      backgroundColor: palette.navBar,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       indicatorColor: Colors.transparent,
@@ -130,15 +228,15 @@ ThemeData buildCueBoxTheme() {
               ? FontWeight.w700
               : FontWeight.w500,
           color: states.contains(WidgetState.selected)
-              ? CueBoxColors.textPrimary
-              : CueBoxColors.textFaint,
+              ? palette.textPrimary
+              : palette.textFaint,
         ),
       ),
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
           color: states.contains(WidgetState.selected)
-              ? CueBoxColors.primary
-              : CueBoxColors.textFaint,
+              ? palette.primary
+              : palette.textFaint,
           size: 24,
         ),
       ),
@@ -146,135 +244,126 @@ ThemeData buildCueBoxTheme() {
 
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: CueBoxColors.primary,
-        foregroundColor: const Color(0xFF002A36),
+        backgroundColor: palette.primary,
+        foregroundColor: Color(0xFF002A36),
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
       ),
     ),
 
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: CueBoxColors.textPrimary,
-        side: const BorderSide(color: CueBoxColors.borderStrong),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        foregroundColor: palette.textPrimary,
+        side: BorderSide(color: palette.borderStrong),
+        padding: EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     ),
 
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
-        foregroundColor: CueBoxColors.textPrimary,
+        foregroundColor: palette.textPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     ),
 
-    listTileTheme: const ListTileThemeData(
-      iconColor: CueBoxColors.textSecondary,
-      textColor: CueBoxColors.textPrimary,
+    listTileTheme: ListTileThemeData(
+      iconColor: palette.textSecondary,
+      textColor: palette.textPrimary,
     ),
 
     dividerTheme: DividerThemeData(
-      color: CueBoxColors.border,
+      color: palette.border,
       thickness: 1,
       space: 1,
     ),
 
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: CueBoxColors.surfaceHigh,
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: palette.surfaceHigh,
       surfaceTintColor: Colors.transparent,
-      modalBackgroundColor: CueBoxColors.surfaceHigh,
+      modalBackgroundColor: palette.surfaceHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       showDragHandle: true,
-      dragHandleColor: Color(0x33FFFFFF),
+      dragHandleColor: Color(0x33000000),
     ),
 
     dialogTheme: DialogThemeData(
-      backgroundColor: CueBoxColors.surfaceHigh,
+      backgroundColor: palette.surfaceHigh,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
     ),
 
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: CueBoxColors.surfaceHigh,
-      contentTextStyle: const TextStyle(
-        color: CueBoxColors.textPrimary,
-        fontSize: 13.5,
-      ),
+      backgroundColor: palette.surfaceHigh,
+      contentTextStyle: TextStyle(color: palette.textPrimary, fontSize: 13.5),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: CueBoxColors.borderStrong),
+        side: BorderSide(color: palette.borderStrong),
       ),
     ),
 
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: CueBoxColors.surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      fillColor: palette.surface,
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: CueBoxColors.borderStrong),
+        borderSide: BorderSide(color: palette.borderStrong),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: CueBoxColors.borderStrong),
+        borderSide: BorderSide(color: palette.borderStrong),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: CueBoxColors.primary, width: 1.4),
+        borderSide: BorderSide(color: palette.primary, width: 1.4),
       ),
-      hintStyle: const TextStyle(color: CueBoxColors.textFaint),
+      hintStyle: TextStyle(color: palette.textFaint),
     ),
 
     sliderTheme: SliderThemeData(
-      activeTrackColor: CueBoxColors.primary,
-      inactiveTrackColor: const Color(0x33FFFFFF),
-      thumbColor: CueBoxColors.primary,
-      overlayColor: const Color(0x2238E1FF),
+      activeTrackColor: palette.primary,
+      inactiveTrackColor: Color(0x22000000),
+      thumbColor: palette.primary,
+      overlayColor: palette.primary.withValues(alpha: 0.13),
       trackHeight: 4,
     ),
 
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
-            ? const Color(0xFF002A36)
-            : CueBoxColors.textFaint,
+            ? Color(0xFF002A36)
+            : palette.textFaint,
       ),
       trackColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
-            ? CueBoxColors.primary
-            : const Color(0x33FFFFFF),
+            ? palette.primary
+            : Color(0x22000000),
       ),
     ),
 
-    progressIndicatorTheme: const ProgressIndicatorThemeData(
-      color: CueBoxColors.primary,
-      linearTrackColor: Color(0x22FFFFFF),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: palette.primary,
+      linearTrackColor: Color(0x22000000),
     ),
 
     popupMenuTheme: PopupMenuThemeData(
-      color: CueBoxColors.surfaceHigh,
+      color: palette.surfaceHigh,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: CueBoxColors.borderStrong),
+        side: BorderSide(color: palette.borderStrong),
       ),
-      textStyle: const TextStyle(color: CueBoxColors.textPrimary, fontSize: 13.5),
+      textStyle: TextStyle(color: palette.textPrimary, fontSize: 13.5),
     ),
 
-    pageTransitionsTheme: const PageTransitionsTheme(
+    pageTransitionsTheme: PageTransitionsTheme(
       builders: {
         TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
@@ -285,3 +374,9 @@ ThemeData buildCueBoxTheme() {
     ),
   );
 }
+
+/// 深色主题（默认）。
+ThemeData buildCueBoxTheme() => _buildTheme(_darkPalette);
+
+/// 浅色（白色）主题。
+ThemeData buildLightCueBoxTheme() => _buildTheme(_lightPalette);

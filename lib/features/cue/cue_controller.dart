@@ -5,7 +5,7 @@ import '../show/show_models.dart';
 import '../show/show_providers.dart';
 
 class CueControlState {
-  const CueControlState({
+  CueControlState({
     this.selectedCueId,
     this.lastTriggeredCueId,
     this.listLoop = false,
@@ -47,7 +47,7 @@ class CueController extends Notifier<CueControlState> {
           .read(showProvider)
           .valueOrNull
           ?.activeShow
-          .cues ?? const <Cue>[];
+          .cues ?? <Cue>[];
       if (cues.isEmpty) return;
       final idx = cues.indexWhere((c) => c.id == cueId);
       if (idx < 0) return;
@@ -55,7 +55,7 @@ class CueController extends Notifier<CueControlState> {
       _trigger(next);
     });
     ref.onDispose(sub.cancel);
-    return const CueControlState();
+    return CueControlState();
   }
 
   void select(String id) {
@@ -71,7 +71,7 @@ class CueController extends Notifier<CueControlState> {
         .read(showProvider)
         .valueOrNull
         ?.activeShow
-        .cues ?? const <Cue>[];
+        .cues ?? <Cue>[];
     if (cues.isEmpty) return;
     final selIdx = cues.indexWhere((c) => c.id == state.selectedCueId);
     final start = selIdx >= 0 ? selIdx : 0;

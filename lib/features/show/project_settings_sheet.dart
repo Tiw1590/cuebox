@@ -8,7 +8,8 @@ import 'show_providers.dart';
 Future<void> showProjectSettingsSheet(BuildContext context, WidgetRef ref) {
   return showModalBottomSheet<void>(
     context: context,
-    builder: (_) => const _ProjectSettingsSheet(),
+    isScrollControlled: true,
+    builder: (_) => _ProjectSettingsSheet(),
   );
 }
 
@@ -37,7 +38,9 @@ class _ProjectSettingsSheetState extends ConsumerState<_ProjectSettingsSheet> {
   }
 
   Future<void> _save() async {
-    await ref.read(showProvider.notifier).updateShowDefaults(
+    await ref
+        .read(showProvider.notifier)
+        .updateShowDefaults(
           volume: _volume,
           fadeInMs: _fadeInMs,
           fadeOutMs: _fadeOutMs,
@@ -50,101 +53,103 @@ class _ProjectSettingsSheetState extends ConsumerState<_ProjectSettingsSheet> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('工程参数', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            const Text(
-              '作为新加入音频的默认播放参数',
-              style: TextStyle(fontSize: 12.5, color: CueBoxColors.textFaint),
-            ),
-            const SizedBox(height: 12),
-            _ParamSlider(
-              label: '默认音量',
-              valueLabel: '${(_volume * 100).round()}%',
-              value: _volume,
-              min: 0,
-              max: 1,
-              divisions: 20,
-              onChanged: (v) => setState(() => _volume = v),
-            ),
-            _ParamSlider(
-              label: '默认淡入',
-              valueLabel: _fmtSec(_fadeInMs),
-              value: _fadeInMs.toDouble(),
-              min: 0,
-              max: 3000,
-              divisions: 60,
-              onChanged: (v) => setState(() => _fadeInMs = v.round()),
-            ),
-            _ParamSlider(
-              label: '默认淡出',
-              valueLabel: _fmtSec(_fadeOutMs),
-              value: _fadeOutMs.toDouble(),
-              min: 0,
-              max: 5000,
-              divisions: 100,
-              onChanged: (v) => setState(() => _fadeOutMs = v.round()),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('默认循环', style: TextStyle(fontSize: 14)),
-                        SizedBox(height: 2),
-                        Text(
-                          '新加入的音频默认循环播放',
-                          style: TextStyle(
-                            color: CueBoxColors.textFaint,
-                            fontSize: 12,
+        padding: EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('工程参数', style: Theme.of(context).textTheme.titleLarge),
+              SizedBox(height: 4),
+              Text(
+                '作为新加入音频的默认播放参数',
+                style: TextStyle(fontSize: 12.5, color: CueBoxColors.textFaint),
+              ),
+              SizedBox(height: 12),
+              _ParamSlider(
+                label: '默认音量',
+                valueLabel: '${(_volume * 100).round()}%',
+                value: _volume,
+                min: 0,
+                max: 1,
+                divisions: 20,
+                onChanged: (v) => setState(() => _volume = v),
+              ),
+              _ParamSlider(
+                label: '默认淡入',
+                valueLabel: _fmtSec(_fadeInMs),
+                value: _fadeInMs.toDouble(),
+                min: 0,
+                max: 3000,
+                divisions: 60,
+                onChanged: (v) => setState(() => _fadeInMs = v.round()),
+              ),
+              _ParamSlider(
+                label: '默认淡出',
+                valueLabel: _fmtSec(_fadeOutMs),
+                value: _fadeOutMs.toDouble(),
+                min: 0,
+                max: 5000,
+                divisions: 100,
+                onChanged: (v) => setState(() => _fadeOutMs = v.round()),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('默认循环', style: TextStyle(fontSize: 14)),
+                          SizedBox(height: 2),
+                          Text(
+                            '新加入的音频默认循环播放',
+                            style: TextStyle(
+                              color: CueBoxColors.textFaint,
+                              fontSize: 12,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _loop,
+                      onChanged: (v) => setState(() => _loop = v),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _volume = 1.0;
+                          _fadeInMs = 20;
+                          _fadeOutMs = 150;
+                          _loop = false;
+                        });
+                      },
+                      icon: Icon(Icons.restart_alt, size: 18),
+                      label: Text('恢复默认'),
                     ),
                   ),
-                  Switch(
-                    value: _loop,
-                    onChanged: (v) => setState(() => _loop = v),
+                  SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton.icon(
+                      onPressed: _save,
+                      icon: Icon(Icons.check, size: 18),
+                      label: Text('保存'),
+                    ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _volume = 1.0;
-                        _fadeInMs = 20;
-                        _fadeOutMs = 150;
-                        _loop = false;
-                      });
-                    },
-                    icon: const Icon(Icons.restart_alt, size: 18),
-                    label: const Text('恢复默认'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: FilledButton.icon(
-                    onPressed: _save,
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('保存'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -176,7 +181,7 @@ class _ParamSlider extends StatelessWidget {
       children: [
         SizedBox(
           width: 76,
-          child: Text(label, style: const TextStyle(fontSize: 13.5)),
+          child: Text(label, style: TextStyle(fontSize: 13.5)),
         ),
         Expanded(
           child: Slider(
@@ -192,7 +197,7 @@ class _ParamSlider extends StatelessWidget {
           child: Text(
             valueLabel,
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               color: CueBoxColors.primary,
               fontSize: 13,
               fontWeight: FontWeight.w600,

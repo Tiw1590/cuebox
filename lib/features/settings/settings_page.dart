@@ -14,12 +14,12 @@ class SettingsPage extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('清空演出数据？'),
-        content: const Text('将删除全部 Cue 列表与 Cart 格块，此操作无法撤销。'),
+        title: Text('清空演出数据？'),
+        content: Text('将删除全部 Cue 列表与 Card，此操作无法撤销。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
+            child: Text('取消'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -27,7 +27,7 @@ class SettingsPage extends ConsumerWidget {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('清空'),
+            child: Text('清空'),
           ),
         ],
       ),
@@ -36,7 +36,7 @@ class SettingsPage extends ConsumerWidget {
       await ref.read(showProvider.notifier).clearAll();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('演出数据已清空')),
+          SnackBar(content: Text('演出数据已清空')),
         );
       }
     }
@@ -49,21 +49,21 @@ class SettingsPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(title: const Text('设置')),
+      appBar: AppBar(title: Text('设置')),
       body: CueBoxBackground(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 32),
           children: [
-            const _SectionHeader('素材库'),
-            const SizedBox(height: 10),
+            _SectionHeader('素材库'),
+            SizedBox(height: 10),
             _SettingsCard(
               children: [
                 ListTile(
-                  leading: const _TileIcon(
+                  leading: _TileIcon(
                     icon: Icons.folder_rounded,
                     color: CueBoxColors.amber,
                   ),
-                  title: const Text('当前素材目录'),
+                  title: Text('当前素材目录'),
                   subtitle: Text(
                     root?.name ?? '未选择',
                     maxLines: 1,
@@ -74,7 +74,7 @@ class SettingsPage extends ConsumerWidget {
                           : CueBoxColors.textSecondary,
                     ),
                   ),
-                  trailing: const Icon(
+                  trailing: Icon(
                     Icons.chevron_right,
                     color: CueBoxColors.textFaint,
                   ),
@@ -84,75 +84,75 @@ class SettingsPage extends ConsumerWidget {
                     } catch (_) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('选择目录失败')),
+                          SnackBar(content: Text('选择目录失败')),
                         );
                       }
                     }
                   },
                 ),
-                const Divider(indent: 56),
+                Divider(indent: 56),
                 ListTile(
-                  leading: const _TileIcon(
+                  leading: _TileIcon(
                     icon: Icons.folder_open_rounded,
                     color: CueBoxColors.primary,
                   ),
-                  title: const Text('更换目录'),
-                  subtitle: const Text('重新选择素材所在文件夹'),
+                  title: Text('更换目录'),
+                  subtitle: Text('重新选择素材所在文件夹'),
                   onTap: () async {
                     try {
                       await ref.read(mediaRootProvider.notifier).pick();
                     } catch (_) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('选择目录失败')),
+                          SnackBar(content: Text('选择目录失败')),
                         );
                       }
                     }
                   },
                 ),
                 if (root != null) ...[
-                  const Divider(indent: 56),
+                  Divider(indent: 56),
                   ListTile(
-                    leading: const _TileIcon(
+                    leading: _TileIcon(
                       icon: Icons.link_off_rounded,
                       color: CueBoxColors.danger,
                     ),
-                    title: const Text(
+                    title: Text(
                       '解除素材目录',
                       style: TextStyle(color: CueBoxColors.danger),
                     ),
-                    subtitle: const Text('仅解除引用，不会删除文件'),
+                    subtitle: Text('仅解除引用，不会删除文件'),
                     onTap: () =>
                         ref.read(mediaRootProvider.notifier).clear(),
                   ),
                 ],
               ],
             ),
-            const SizedBox(height: 28),
-            const _SectionHeader('数据'),
-            const SizedBox(height: 10),
+            SizedBox(height: 28),
+            _SectionHeader('数据'),
+            SizedBox(height: 10),
             _SettingsCard(
               children: [
                 ListTile(
-                  leading: const _TileIcon(
+                  leading: _TileIcon(
                     icon: Icons.delete_sweep_outlined,
                     color: CueBoxColors.danger,
                   ),
-                  title: const Text(
+                  title: Text(
                     '清空演出数据',
                     style: TextStyle(color: CueBoxColors.danger),
                   ),
-                  subtitle: const Text('删除当前演出的全部 Cue 与 Cart 格块'),
+                  subtitle: Text('删除当前演出的全部 Cue 与 Card'),
                   onTap: () => _confirmClearData(context, ref),
                 ),
               ],
             ),
-            const SizedBox(height: 28),
-            const _SectionHeader('关于'),
-            const SizedBox(height: 10),
+            SizedBox(height: 28),
+            _SectionHeader('关于'),
+            SizedBox(height: 10),
             _SettingsCard(
               children: [
-                const ListTile(
+                ListTile(
                   leading: _TileIcon(
                     icon: Icons.auto_awesome,
                     color: CueBoxColors.secondary,
@@ -160,8 +160,8 @@ class SettingsPage extends ConsumerWidget {
                   title: Text('CueBox'),
                   subtitle: Text('现场表演音效 Cue 播放器'),
                 ),
-                const Divider(indent: 56),
-                const ListTile(
+                Divider(indent: 56),
+                ListTile(
                   leading: _TileIcon(
                     icon: Icons.info_outline,
                     color: CueBoxColors.textSecondary,
@@ -192,10 +192,10 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 6),
+      padding: EdgeInsets.only(left: 6),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12.5,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
@@ -217,7 +217,7 @@ class _SettingsCard extends StatelessWidget {
       color: CueBoxColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: CueBoxColors.border),
+        side: BorderSide(color: CueBoxColors.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),

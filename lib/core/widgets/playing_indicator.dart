@@ -9,11 +9,11 @@ class PlayingIndicator extends StatefulWidget {
   const PlayingIndicator({
     super.key,
     this.size = 18,
-    this.color = CueBoxColors.primary,
+    this.color,
   });
 
   final double size;
-  final Color color;
+  final Color? color;
 
   @override
   State<PlayingIndicator> createState() => _PlayingIndicatorState();
@@ -28,7 +28,7 @@ class _PlayingIndicatorState extends State<PlayingIndicator>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: Duration(milliseconds: 900),
     )..repeat();
   }
 
@@ -40,6 +40,7 @@ class _PlayingIndicatorState extends State<PlayingIndicator>
 
   @override
   Widget build(BuildContext context) {
+    final color = widget.color ?? CueBoxColors.primary;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -57,7 +58,7 @@ class _PlayingIndicatorState extends State<PlayingIndicator>
                 width: widget.size / 4,
                 height: widget.size * (0.32 + 0.68 * height),
                 decoration: BoxDecoration(
-                  color: widget.color,
+                  color: color,
                   borderRadius: BorderRadius.circular(99),
                 ),
               );

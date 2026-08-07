@@ -11,7 +11,7 @@ class CueBoxBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: CueBoxColors.backgroundGradient,
       ),
       child: Stack(

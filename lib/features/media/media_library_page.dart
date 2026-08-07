@@ -36,8 +36,8 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
         uri: item.uri,
         label: item.name,
         sourceId: tag,
-        fadeIn: const Duration(milliseconds: 80),
-        fadeOut: const Duration(milliseconds: 120),
+        fadeIn: Duration(milliseconds: 80),
+        fadeOut: Duration(milliseconds: 120),
         stopOthers: true,
       );
     }
@@ -68,8 +68,7 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
   void _toggleSelectAll(List<MediaItem> audioItems) {
     setState(() {
       final all = audioItems.map((i) => i.uri).toSet();
-      final allSelected =
-          all.isNotEmpty && all.every(_selectedUris.contains);
+      final allSelected = all.isNotEmpty && all.every(_selectedUris.contains);
       if (allSelected) {
         _selectedUris.removeAll(all);
       } else {
@@ -84,38 +83,36 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
   // ---------- 添加 ----------
 
   Future<void> _addToCue(MediaItem item) async {
-    await ref.read(showProvider.notifier).addCue(
-          uri: item.uri,
-          name: item.name,
-        );
+    await ref
+        .read(showProvider.notifier)
+        .addCue(uri: item.uri, name: item.name);
     preloadWaveform(item.uri);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('「${item.name}」已加入 Cue 列表'),
-        duration: const Duration(milliseconds: 1500),
+        duration: Duration(milliseconds: 1500),
       ),
     );
   }
 
   Future<void> _addToCart(MediaItem item) async {
-    await ref.read(showProvider.notifier).addCartSlot(
-          uri: item.uri,
-          name: item.name,
-        );
+    await ref
+        .read(showProvider.notifier)
+        .addCartSlot(uri: item.uri, name: item.name);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('「${item.name}」已加入 Cart 格块'),
-        duration: const Duration(milliseconds: 1500),
+        content: Text('「${item.name}」已加入 Card'),
+        duration: Duration(milliseconds: 1500),
       ),
     );
   }
 
   Future<void> _addSelectedToCue(List<MediaItem> selected) async {
-    await ref.read(showProvider.notifier).addCues(
-          selected.map((i) => (uri: i.uri, name: i.name)).toList(),
-        );
+    await ref
+        .read(showProvider.notifier)
+        .addCues(selected.map((i) => (uri: i.uri, name: i.name)).toList());
     for (final item in selected) {
       preloadWaveform(item.uri);
     }
@@ -127,15 +124,15 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
     messenger.showSnackBar(
       SnackBar(
         content: Text('已加入 Cue 列表 · $n 项，可继续选择添加'),
-        duration: const Duration(milliseconds: 1500),
+        duration: Duration(milliseconds: 1500),
       ),
     );
   }
 
   Future<void> _addSelectedToCart(List<MediaItem> selected) async {
-    await ref.read(showProvider.notifier).addCartSlots(
-          selected.map((i) => (uri: i.uri, name: i.name)).toList(),
-        );
+    await ref
+        .read(showProvider.notifier)
+        .addCartSlots(selected.map((i) => (uri: i.uri, name: i.name)).toList());
     if (!mounted) return;
     final n = selected.length;
     setState(() => _selectedUris.clear());
@@ -143,8 +140,8 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        content: Text('已加入 Cart 格块 · $n 项，可继续选择添加'),
-        duration: const Duration(milliseconds: 1500),
+        content: Text('已加入 Card · $n 项，可继续选择添加'),
+        duration: Duration(milliseconds: 1500),
       ),
     );
   }
@@ -175,7 +172,8 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
     }
 
     final audioItems = _currentAudioItems(browse.children);
-    final allSelected = audioItems.isNotEmpty &&
+    final allSelected =
+        audioItems.isNotEmpty &&
         audioItems.every((i) => _selectedUris.contains(i.uri));
 
     return Scaffold(
@@ -184,7 +182,7 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
           ? AppBar(
               leading: IconButton(
                 tooltip: '退出多选',
-                icon: const Icon(Icons.close),
+                icon: Icon(Icons.close),
                 onPressed: _exitSelection,
               ),
               title: Text('已选 ${_selectedUris.length} 项'),
@@ -193,10 +191,10 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
                   onPressed: () => _toggleSelectAll(audioItems),
                   child: Text(
                     allSelected ? '取消全选' : '全选',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
               ],
             )
           : AppBar(
@@ -205,54 +203,54 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
                 if (root != null)
                   IconButton(
                     tooltip: '更换素材目录',
-                    icon: const Icon(Icons.folder_open_outlined),
+                    icon: Icon(Icons.folder_open_outlined),
                     onPressed: () =>
                         ref.read(mediaRootProvider.notifier).pick(),
                   ),
                 if (browse.hasRoot)
                   IconButton(
                     tooltip: '刷新',
-                    icon: const Icon(Icons.refresh),
+                    icon: Icon(Icons.refresh),
                     onPressed: () =>
                         ref.read(mediaBrowseProvider.notifier).refresh(),
                   ),
                 if (root != null)
                   IconButton(
                     tooltip: '多选添加',
-                    icon: const Icon(Icons.library_add_check_outlined),
+                    icon: Icon(Icons.library_add_check_outlined),
                     onPressed: () => _enterSelection(),
                   ),
               ],
             ),
       body: CueBoxBackground(
         child: switch (rootAsync) {
-          AsyncLoading() => const Center(child: CircularProgressIndicator()),
+          AsyncLoading() => Center(child: CircularProgressIndicator()),
           AsyncError(:final error) => _ErrorView(
-              message: '$error',
-              onRetry: () => ref.invalidate(mediaRootProvider),
-            ),
+            message: '$error',
+            onRetry: () => ref.invalidate(mediaRootProvider),
+          ),
           _ when root == null => EmptyState(
-              icon: Icons.folder_open_rounded,
-              iconColor: CueBoxColors.amber,
-              title: '选择素材目录',
-              subtitle: '音频文件按子文件夹分组展示；\n点按试听，长按进入多选，可一次加入 Cue 或 Cart。',
-              action: FilledButton.icon(
-                onPressed: () => ref.read(mediaRootProvider.notifier).pick(),
-                icon: const Icon(Icons.folder_open, size: 20),
-                label: const Text('选择素材目录'),
-              ),
+            icon: Icons.folder_open_rounded,
+            iconColor: CueBoxColors.amber,
+            title: '选择素材目录',
+            subtitle: '音频文件按子文件夹分组展示；\n点按试听，长按进入多选，可一次加入 Cue 或 Card。',
+            action: FilledButton.icon(
+              onPressed: () => ref.read(mediaRootProvider.notifier).pick(),
+              icon: Icon(Icons.folder_open, size: 20),
+              label: Text('选择素材目录'),
             ),
+          ),
           _ => _FolderBrowser(
-              browse: browse,
-              playing: playing,
-              selecting: _selecting,
-              selectedUris: _selectedUris,
-              onPreview: _togglePreview,
-              onLongPress: _toggleSelect,
-              onTapItem: _selecting ? _toggleSelect : _togglePreview,
-              onEnterSelection: _enterSelection,
-              onShowActions: _showAudioActions,
-            ),
+            browse: browse,
+            playing: playing,
+            selecting: _selecting,
+            selectedUris: _selectedUris,
+            onPreview: _togglePreview,
+            onLongPress: _toggleSelect,
+            onTapItem: _selecting ? _toggleSelect : _togglePreview,
+            onEnterSelection: _enterSelection,
+            onShowActions: _showAudioActions,
+          ),
         },
       ),
       bottomNavigationBar: _selecting
@@ -262,17 +260,17 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
               onAddCue: _selectedUris.isEmpty || targetKind != ShowKind.cue
                   ? null
                   : () => _addSelectedToCue(
-                        audioItems
-                            .where((i) => _selectedUris.contains(i.uri))
-                            .toList(),
-                      ),
+                      audioItems
+                          .where((i) => _selectedUris.contains(i.uri))
+                          .toList(),
+                    ),
               onAddCart: _selectedUris.isEmpty || targetKind != ShowKind.cart
                   ? null
                   : () => _addSelectedToCart(
-                        audioItems
-                            .where((i) => _selectedUris.contains(i.uri))
-                            .toList(),
-                      ),
+                      audioItems
+                          .where((i) => _selectedUris.contains(i.uri))
+                          .toList(),
+                    ),
             )
           : null,
     );
@@ -283,84 +281,87 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
     final targetKind = activeShow?.kind ?? ShowKind.cue;
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 10, 24, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '音频文件 · ${_formatBytes(item.size)}',
-                    style: const TextStyle(
-                      color: CueBoxColors.textFaint,
-                      fontSize: 12.5,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(24, 10, 24, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
+                    SizedBox(height: 4),
+                    Text(
+                      '音频文件 · ${_formatBytes(item.size)}',
+                      style: TextStyle(
+                        color: CueBoxColors.textFaint,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(),
+              ListTile(
+                leading: Icon(
+                  Icons.play_circle_outline,
+                  color: CueBoxColors.primary,
+                ),
+                title: Text('试听'),
+                subtitle: Text('点按再次试听可停止'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _togglePreview(item);
+                },
+              ),
+              if (targetKind == ShowKind.cue)
+                ListTile(
+                  leading: Icon(
+                    Icons.playlist_add,
+                    color: CueBoxColors.secondary,
                   ),
-                ],
-              ),
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(
-                Icons.play_circle_outline,
-                color: CueBoxColors.primary,
-              ),
-              title: const Text('试听'),
-              subtitle: const Text('点按再次试听可停止'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _togglePreview(item);
-              },
-            ),
-            if (targetKind == ShowKind.cue)
-              ListTile(
-                leading: const Icon(
-                  Icons.playlist_add,
-                  color: CueBoxColors.secondary,
+                  title: Text('加入 Cue 列表'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _addToCue(item);
+                  },
                 ),
-                title: const Text('加入 Cue 列表'),
+              if (targetKind == ShowKind.cart)
+                ListTile(
+                  leading: Icon(
+                    Icons.grid_view_rounded,
+                    color: CueBoxColors.amber,
+                  ),
+                  title: Text('加入 Card'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _addToCart(item);
+                  },
+                ),
+              ListTile(
+                leading: Icon(
+                  Icons.library_add_check_outlined,
+                  color: CueBoxColors.textSecondary,
+                ),
+                title: Text('多选添加'),
+                subtitle: Text('可一次选择多个文件批量加入'),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  _addToCue(item);
+                  _enterSelection(item);
                 },
               ),
-            if (targetKind == ShowKind.cart)
-              ListTile(
-                leading: const Icon(
-                  Icons.grid_view_rounded,
-                  color: CueBoxColors.amber,
-                ),
-                title: const Text('加入 Cart 格块'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _addToCart(item);
-                },
-              ),
-            ListTile(
-              leading: const Icon(
-                Icons.library_add_check_outlined,
-                color: CueBoxColors.textSecondary,
-              ),
-              title: const Text('多选添加'),
-              subtitle: const Text('可一次选择多个文件批量加入'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _enterSelection(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+              SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -384,10 +385,10 @@ class _SelectionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xF20D131B),
-        border: const Border(top: BorderSide(color: CueBoxColors.border)),
+        color: Color(0xF20D131B),
+        border: Border(top: BorderSide(color: CueBoxColors.border)),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      padding: EdgeInsets.fromLTRB(16, 10, 16, 12),
       child: SafeArea(
         top: false,
         child: Row(
@@ -402,20 +403,22 @@ class _SelectionBar extends StatelessWidget {
                     : CueBoxColors.primary,
               ),
             ),
-            const Spacer(),
+            Spacer(),
             if (kind == ShowKind.cue) ...[
               OutlinedButton.icon(
                 onPressed: onAddCue,
-                icon: const Icon(Icons.playlist_add, size: 18),
-                label:
-                    Text('加入 Cue${selectedCount > 0 ? ' ($selectedCount)' : ''}'),
+                icon: Icon(Icons.playlist_add, size: 18),
+                label: Text(
+                  '加入 Cue${selectedCount > 0 ? ' ($selectedCount)' : ''}',
+                ),
               ),
             ] else ...[
               OutlinedButton.icon(
                 onPressed: onAddCart,
-                icon: const Icon(Icons.grid_view_rounded, size: 18),
-                label:
-                    Text('加入 Cart${selectedCount > 0 ? ' ($selectedCount)' : ''}'),
+                icon: Icon(Icons.grid_view_rounded, size: 18),
+                label: Text(
+                  '加入 Card${selectedCount > 0 ? ' ($selectedCount)' : ''}',
+                ),
               ),
             ],
           ],
@@ -451,14 +454,14 @@ class _FolderBrowser extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (browse.loading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator());
     }
     if (browse.error != null) {
       return _ErrorView(message: browse.error!);
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+      padding: EdgeInsets.fromLTRB(16, 4, 16, 32),
       children: [
         if (browse.path.isNotEmpty) ...[
           SingleChildScrollView(
@@ -467,7 +470,7 @@ class _FolderBrowser extends ConsumerWidget {
               children: [
                 for (var i = 0; i < browse.path.length; i++) ...[
                   if (i > 0)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 2),
                       child: Icon(
                         Icons.chevron_right,
@@ -480,32 +483,28 @@ class _FolderBrowser extends ConsumerWidget {
                     isCurrent: i == browse.path.length - 1,
                     onTap: i < browse.path.length - 1
                         ? () => ref
-                            .read(mediaBrowseProvider.notifier)
-                            .jumpTo(browse.path.sublist(0, i + 1))
+                              .read(mediaBrowseProvider.notifier)
+                              .jumpTo(browse.path.sublist(0, i + 1))
                         : null,
                   ),
                 ],
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
         ],
         Row(
           children: [
             Icon(
-              selecting
-                  ? Icons.checklist_rtl
-                  : Icons.touch_app_outlined,
+              selecting ? Icons.checklist_rtl : Icons.touch_app_outlined,
               size: 13,
               color: CueBoxColors.textFaint,
             ),
-            const SizedBox(width: 5),
+            SizedBox(width: 5),
             Expanded(
               child: Text(
-                selecting
-                    ? '多选模式：点按勾选，可跨文件夹继续选择'
-                    : '点按试听 · 长按进入多选',
-                style: const TextStyle(
+                selecting ? '多选模式：点按勾选，可跨文件夹继续选择' : '点按试听 · 长按进入多选',
+                style: TextStyle(
                   fontSize: 12,
                   color: CueBoxColors.textFaint,
                 ),
@@ -513,9 +512,9 @@ class _FolderBrowser extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         if (browse.children.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 80),
             child: EmptyState(
               icon: Icons.folder_off_outlined,
@@ -526,7 +525,7 @@ class _FolderBrowser extends ConsumerWidget {
         else
           for (final item in browse.children)
             Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: EdgeInsets.only(bottom: 10),
               child: item.isDirectory
                   ? _FolderTile(
                       item: item,
@@ -538,10 +537,11 @@ class _FolderBrowser extends ConsumerWidget {
                       item: item,
                       selecting: selecting,
                       selected: selectedUris.contains(item.uri),
-                      isPlaying: playing.values
-                          .any((p) =>
-                              p.sourceId == 'preview_${item.uri}' &&
-                              !p.isStopping),
+                      isPlaying: playing.values.any(
+                        (p) =>
+                            p.sourceId == 'preview_${item.uri}' &&
+                            !p.isStopping,
+                      ),
                       onTap: () => onTapItem(item),
                       onLongPress: () => onLongPress(item),
                       onMenu: () => onShowActions(item),
@@ -568,7 +568,7 @@ class _BreadcrumbChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: isCurrent
               ? CueBoxColors.primary.withValues(alpha: 0.10)
@@ -611,7 +611,7 @@ class _FolderTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: CueBoxColors.border),
@@ -625,28 +625,25 @@ class _FolderTile extends StatelessWidget {
                   color: CueBoxColors.amber.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.folder_rounded,
                   color: CueBoxColors.amber,
                   size: 22,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Text(
                   item.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                color: CueBoxColors.textFaint,
-              ),
+              Icon(Icons.chevron_right, color: CueBoxColors.textFaint),
             ],
           ),
         ),
@@ -678,7 +675,7 @@ class _AudioTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final highlight = selecting ? selected : isPlaying;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: Duration(milliseconds: 200),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -690,10 +687,11 @@ class _AudioTile extends StatelessWidget {
         boxShadow: highlight
             ? [
                 BoxShadow(
-                  color: (selecting
-                          ? CueBoxColors.secondary
-                          : CueBoxColors.primary)
-                      .withValues(alpha: 0.10),
+                  color:
+                      (selecting
+                              ? CueBoxColors.secondary
+                              : CueBoxColors.primary)
+                          .withValues(alpha: 0.10),
                   blurRadius: 20,
                 ),
               ]
@@ -702,8 +700,8 @@ class _AudioTile extends StatelessWidget {
       child: Material(
         color: highlight
             ? (selecting
-                ? CueBoxColors.secondary.withValues(alpha: 0.08)
-                : CueBoxColors.primary.withValues(alpha: 0.06))
+                  ? CueBoxColors.secondary.withValues(alpha: 0.08)
+                  : CueBoxColors.primary.withValues(alpha: 0.06))
             : CueBoxColors.surface,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
@@ -711,12 +709,12 @@ class _AudioTile extends StatelessWidget {
           onTap: onTap,
           onLongPress: onLongPress,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 if (selecting) ...[
                   AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
+                    duration: Duration(milliseconds: 150),
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
@@ -732,14 +730,14 @@ class _AudioTile extends StatelessWidget {
                       ),
                     ),
                     child: selected
-                        ? const Icon(
+                        ? Icon(
                             Icons.check,
                             size: 15,
                             color: Color(0xFF17101F),
                           )
                         : null,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                 ],
                 Container(
                   width: 40,
@@ -747,8 +745,8 @@ class _AudioTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: highlight
                         ? (selecting
-                            ? CueBoxColors.secondary.withValues(alpha: 0.15)
-                            : CueBoxColors.primary.withValues(alpha: 0.15))
+                              ? CueBoxColors.secondary.withValues(alpha: 0.15)
+                              : CueBoxColors.primary.withValues(alpha: 0.15))
                         : CueBoxColors.surfacePressed,
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -756,17 +754,17 @@ class _AudioTile extends StatelessWidget {
                     selecting
                         ? Icons.music_note_rounded
                         : (isPlaying
-                            ? Icons.graphic_eq_rounded
-                            : Icons.music_note_rounded),
+                              ? Icons.graphic_eq_rounded
+                              : Icons.music_note_rounded),
                     color: highlight
                         ? (selecting
-                            ? CueBoxColors.secondary
-                            : CueBoxColors.primary)
+                              ? CueBoxColors.secondary
+                              : CueBoxColors.primary)
                         : CueBoxColors.textSecondary,
                     size: 22,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -775,15 +773,15 @@ class _AudioTile extends StatelessWidget {
                         item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      SizedBox(height: 3),
                       Text(
                         _formatBytes(item.size),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11.5,
                           color: CueBoxColors.textFaint,
                         ),
@@ -791,24 +789,24 @@ class _AudioTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 if (selecting)
-                  const SizedBox(width: 26)
+                  SizedBox(width: 26)
                 else if (isPlaying)
-                  const PlayingIndicator(size: 16)
+                  PlayingIndicator(size: 16)
                 else
-                  const Icon(
+                  Icon(
                     Icons.play_circle_outline,
                     size: 24,
                     color: CueBoxColors.textFaint,
                   ),
                 if (!selecting) ...[
-                  const SizedBox(width: 2),
+                  SizedBox(width: 2),
                   IconButton(
                     tooltip: '操作',
                     visualDensity: VisualDensity.compact,
                     onPressed: onMenu,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.more_vert,
                       size: 19,
                       color: CueBoxColors.textFaint,
@@ -840,8 +838,8 @@ class _ErrorView extends StatelessWidget {
           ? null
           : OutlinedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('重试'),
+              icon: Icon(Icons.refresh, size: 18),
+              label: Text('重试'),
             ),
     );
   }

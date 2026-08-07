@@ -10,6 +10,7 @@ import '../playback/playback_engine.dart';
 import '../show/show_models.dart';
 import '../show/show_providers.dart';
 import '../show/project_settings_sheet.dart';
+import '../show/clipboard.dart';
 import 'cue_controller.dart';
 
 /// Cue 列表视图（主框架内嵌，无独立 AppBar）。
@@ -21,50 +22,40 @@ class CueListPage extends ConsumerStatefulWidget {
 }
 
 class _CueListPageState extends ConsumerState<CueListPage> {
-  Future<void> _editCue(Cue cue) async {
-    final outcome = await showAudioSlotEditor(
-      context: context,
-      title: '编辑 Cue',
-      initialName: cue.name,
-      initialNote: cue.note,
-      initialVolume: cue.volume,
-      initialFadeInMs: cue.fadeInMs,
-      initialFadeOutMs: cue.fadeOutMs,
-      initialLoop: cue.loop,
-      initialSolo: true,
-      showNote: true,
-      showTrim: true,
-      waveformUri: cue.uri,
-      initialStartMs: cue.startMs,
-      initialEndMs: cue.endMs,
-    );
-    if (outcome is SlotEditSaved) {
-      final r = outcome.result;
-      await ref.read(showProvider.notifier).updateCue(
-            cue.copyWith(
-              name: r.name,
-              note: r.note,
-              startMs: r.startMs,
-              endMs: r.endMs,
-              volume: r.volume,
-              fadeInMs: r.fadeInMs,
-              fadeOutMs: r.fadeOutMs,
-              loop: r.loop,
-            ),
-          );
-    }
+  bool _inspectorOpen = false;
+
+  void _openInspectorFor(Cue cue) {
+    ref.read(cueControllerProvider.notifier).select(cue.id);
+    setState(() => _inspectorOpen = true);
+  }
+
+  void _savePanel(Cue cue, SlotEditResult r) {
+    ref
+        .read(showProvider.notifier)
+        .updateCue(
+          cue.copyWith(
+            name: r.name,
+            note: r.note,
+            startMs: r.startMs,
+            endMs: r.endMs,
+            volume: r.volume,
+            fadeInMs: r.fadeInMs,
+            fadeOutMs: r.fadeOutMs,
+            loop: r.loop,
+          ),
+        );
   }
 
   Future<void> _confirmClearAll() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('清空 Cue 列表？'),
-        content: const Text('将删除本场演出全部 Cue，此操作无法撤销。'),
+        title: Text('清空 Cue 列表？'),
+        content: Text('将删除本场演出全部 Cue，此操作无法撤销。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
+            child: Text('取消'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -72,7 +63,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('清空'),
+            child: Text('清空'),
           ),
         ],
       ),
@@ -83,9 +74,9 @@ class _CueListPageState extends ConsumerState<CueListPage> {
   }
 
   void _openMediaLibrary() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MediaLibraryPage()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => MediaLibraryPage()));
   }
 
   @override
@@ -94,20 +85,24 @@ class _CueListPageState extends ConsumerState<CueListPage> {
     final control = ref.watch(cueControllerProvider);
     final playing = ref.watch(playbackEngineProvider);
     final show = showAsync.valueOrNull;
-    final cues = show?.cues ?? const <Cue>[];
+    final cues = show?.cues ?? <Cue>[];
     final locked = show?.locked ?? false;
+    final clipboard = ref.watch(clipboardProvider);
+    final canPaste = clipboard?.kind == ClipboardKind.cue;
+    final selected = cues
+        .where((c) => c.id == control.selectedCueId)
+        .firstOrNull;
 
-    return Column(
+    final mainColumn = Column(
       children: [
         _CueHeader(
           cues: cues,
           selectedCueId: control.selectedCueId,
           onGo: () => ref.read(cueControllerProvider.notifier).go(),
+          canStop: playing.isNotEmpty,
+          onStopAll: () => ref.read(playbackEngineProvider.notifier).stopAll(),
           onEditSelected: () {
-            final selected = cues
-                .where((c) => c.id == control.selectedCueId)
-                .firstOrNull;
-            if (selected != null) _editCue(selected);
+            if (selected != null) _openInspectorFor(selected);
           },
           locked: locked,
         ),
@@ -115,42 +110,109 @@ class _CueListPageState extends ConsumerState<CueListPage> {
           _CueToolbar(
             cueCount: cues.length,
             listLoop: control.listLoop,
-            playingCount: playing.length,
             onToggleLoop: () =>
                 ref.read(cueControllerProvider.notifier).toggleListLoop(),
-            onStopAll: () =>
-                ref.read(playbackEngineProvider.notifier).stopAll(),
             onClearAll: _confirmClearAll,
-            onProjectSettings: () =>
-                showProjectSettingsSheet(context, ref),
+            onProjectSettings: () => showProjectSettingsSheet(context, ref),
+            onPaste: canPaste ? () => pasteClipboard(ref, context) : null,
           ),
         Expanded(
           child: switch (showAsync) {
-            AsyncLoading() =>
-              const Center(child: CircularProgressIndicator()),
+            AsyncLoading() => Center(child: CircularProgressIndicator()),
             AsyncError(:final error) => EmptyState(
-                icon: Icons.error_outline,
-                title: '加载失败',
-                subtitle: '$error',
-              ),
+              icon: Icons.error_outline,
+              title: '加载失败',
+              subtitle: '$error',
+            ),
             AsyncData() when cues.isEmpty => EmptyState(
-                icon: Icons.track_changes,
-                title: '还没有 Cue',
-                subtitle: '去素材库多选或长按音频，加入 Cue 列表；\nGO 会依次触发，开启列表循环可自动接龙。',
-                action: locked
-                    ? null
-                    : FilledButton.icon(
-                        onPressed: _openMediaLibrary,
-                        icon: const Icon(Icons.library_music_outlined, size: 20),
-                        label: const Text('去素材库添加'),
-                      ),
-              ),
-            AsyncData(:final value) =>
-              _buildList(value, control, playing, locked),
-            _ => const SizedBox.shrink(),
+              icon: Icons.track_changes,
+              title: '还没有 Cue',
+              subtitle: '去素材库多选或长按音频，加入 Cue 列表；\nGO 会依次触发，开启列表循环可自动接龙。',
+              action: locked
+                  ? null
+                  : FilledButton.icon(
+                      onPressed: _openMediaLibrary,
+                      icon: Icon(Icons.library_music_outlined, size: 20),
+                      label: Text('去素材库添加'),
+                    ),
+            ),
+            AsyncData(:final value) => _buildList(
+              value,
+              control,
+              playing,
+              locked,
+            ),
+            _ => SizedBox.shrink(),
           },
         ),
       ],
+    );
+
+    final inspector = (!locked && _inspectorOpen && selected != null)
+        ? AudioSlotEditorPanel(
+            key: ValueKey(selected.id),
+            title: '编辑参数',
+            initialName: selected.name,
+            initialNote: selected.note,
+            initialVolume: selected.volume,
+            initialFadeInMs: selected.fadeInMs,
+            initialFadeOutMs: selected.fadeOutMs,
+            initialLoop: selected.loop,
+            initialSolo: true,
+            showNote: true,
+            showTrim: true,
+            waveformUri: selected.uri,
+            initialStartMs: selected.startMs,
+            initialEndMs: selected.endMs,
+            onCancel: () => setState(() => _inspectorOpen = false),
+            onSave: (r) => _savePanel(selected, r),
+          )
+        : null;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 720;
+        if (wide) {
+          if (inspector == null) return mainColumn;
+          return Row(
+            children: [
+              Expanded(child: mainColumn),
+              Container(
+                width: 330,
+                decoration: BoxDecoration(
+                  color: CueBoxColors.surface.withValues(alpha: 0.45),
+                  border: Border(
+                    left: BorderSide(color: CueBoxColors.border),
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: inspector,
+                ),
+              ),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            Expanded(child: mainColumn),
+            if (inspector != null)
+              Container(
+                height: 360,
+                decoration: BoxDecoration(
+                  color: Color(0xF20D131B),
+                  border: Border(
+                    top: BorderSide(color: CueBoxColors.border),
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 10, 16, 16),
+                  child: inspector,
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -162,7 +224,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
   ) {
     final cues = show.cues;
     return ReorderableListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      padding: EdgeInsets.fromLTRB(16, 4, 16, 16),
       buildDefaultDragHandles: false,
       itemCount: cues.length,
       onReorderItem: locked
@@ -177,10 +239,11 @@ class _CueListPageState extends ConsumerState<CueListPage> {
       itemBuilder: (context, index) {
         final cue = cues[index];
         final selected = control.selectedCueId == cue.id;
-        final isPlaying = playing.values
-            .any((p) => p.sourceId == cue.id && !p.isStopping);
+        final isPlaying = playing.values.any(
+          (p) => p.sourceId == cue.id && !p.isStopping,
+        );
         final tile = Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+          padding: EdgeInsets.only(bottom: 10),
           child: _CueTile(
             cue: cue,
             index: index,
@@ -190,15 +253,20 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             onTap: () => ref
                 .read(cueControllerProvider.notifier)
                 .select(selected ? '' : cue.id),
-            onEdit: () => _editCue(cue),
+            onEdit: () => _openInspectorFor(cue),
             onMoveUp: index > 0
                 ? () => ref.read(showProvider.notifier).moveCue(cue.id, -1)
                 : null,
             onMoveDown: index < cues.length - 1
                 ? () => ref.read(showProvider.notifier).moveCue(cue.id, 1)
                 : null,
-            onDelete: () =>
-                ref.read(showProvider.notifier).removeCue(cue.id),
+            onDelete: () => ref.read(showProvider.notifier).removeCue(cue.id),
+            onCopy: () {
+              copyCueToClipboard(ref, cue);
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('已复制 Cue「${cue.name}」')));
+            },
           ),
         );
         if (locked) {
@@ -218,52 +286,46 @@ class _CueToolbar extends StatelessWidget {
   const _CueToolbar({
     required this.cueCount,
     required this.listLoop,
-    required this.playingCount,
     required this.onToggleLoop,
-    required this.onStopAll,
     required this.onClearAll,
     required this.onProjectSettings,
+    required this.onPaste,
   });
 
   final int cueCount;
   final bool listLoop;
-  final int playingCount;
   final VoidCallback onToggleLoop;
-  final VoidCallback onStopAll;
   final VoidCallback onClearAll;
   final VoidCallback onProjectSettings;
+  final VoidCallback? onPaste;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+      padding: EdgeInsets.fromLTRB(16, 6, 8, 6),
       child: Row(
         children: [
           _LoopChip(active: listLoop, onTap: onToggleLoop),
-          const SizedBox(width: 6),
-          IconButton(
-            tooltip: '停止全部',
-            visualDensity: VisualDensity.compact,
-            onPressed: playingCount > 0 ? onStopAll : null,
-            color: playingCount > 0
-                ? CueBoxColors.danger
-                : CueBoxColors.textFaint.withValues(alpha: 0.4),
-            icon: const Icon(Icons.stop_circle_outlined, size: 22),
-          ),
-          const Spacer(),
+          SizedBox(width: 6),
+          Spacer(),
           IconButton(
             tooltip: '工程参数',
             visualDensity: VisualDensity.compact,
             onPressed: onProjectSettings,
             color: CueBoxColors.textSecondary,
-            icon: const Icon(Icons.tune, size: 21),
+            icon: Icon(Icons.tune, size: 21),
           ),
+          if (onPaste != null)
+            IconButton(
+              tooltip: '粘贴 Cue',
+              visualDensity: VisualDensity.compact,
+              onPressed: onPaste,
+              color: CueBoxColors.secondary,
+              icon: Icon(Icons.content_paste_go, size: 21),
+            ),
           Text(
             '共 $cueCount 条',
-            style: const TextStyle(
-              fontSize: 12,
-              color: CueBoxColors.textFaint,
-            ),
+            style: TextStyle(fontSize: 12, color: CueBoxColors.textFaint),
           ),
           IconButton(
             tooltip: '清空列表',
@@ -272,7 +334,7 @@ class _CueToolbar extends StatelessWidget {
             color: cueCount > 0
                 ? CueBoxColors.textSecondary
                 : CueBoxColors.textFaint.withValues(alpha: 0.4),
-            icon: const Icon(Icons.delete_sweep_outlined, size: 21),
+            icon: Icon(Icons.delete_sweep_outlined, size: 21),
           ),
         ],
       ),
@@ -297,7 +359,7 @@ class _LoopChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
@@ -311,11 +373,9 @@ class _LoopChip extends StatelessWidget {
               Icon(
                 Icons.repeat,
                 size: 16,
-                color: active
-                    ? CueBoxColors.primary
-                    : CueBoxColors.textFaint,
+                color: active ? CueBoxColors.primary : CueBoxColors.textFaint,
               ),
-              const SizedBox(width: 5),
+              SizedBox(width: 5),
               Text(
                 '列表循环',
                 style: TextStyle(
@@ -346,6 +406,7 @@ class _CueTile extends StatelessWidget {
     required this.onMoveUp,
     required this.onMoveDown,
     required this.onDelete,
+    required this.onCopy,
   });
 
   final Cue cue;
@@ -358,11 +419,12 @@ class _CueTile extends StatelessWidget {
   final VoidCallback? onMoveUp;
   final VoidCallback? onMoveDown;
   final VoidCallback onDelete;
+  final VoidCallback onCopy;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: Duration(milliseconds: 200),
       curve: Curves.easeOut,
       decoration: BoxDecoration(
         color: selected
@@ -390,11 +452,11 @@ class _CueTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 6, 12),
+            padding: EdgeInsets.fromLTRB(12, 12, 6, 12),
             child: Row(
               children: [
                 _IndexBadge(index: index + 1, selected: selected),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,14 +465,14 @@ class _CueTile extends StatelessWidget {
                         cue.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       if (cue.loop) ...[
-                        const SizedBox(height: 5),
-                        const Row(
+                        SizedBox(height: 5),
+                        Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
@@ -433,8 +495,8 @@ class _CueTile extends StatelessWidget {
                   ),
                 ),
                 if (isPlaying) ...[
-                  const PlayingIndicator(),
-                  const SizedBox(width: 8),
+                  PlayingIndicator(),
+                  SizedBox(width: 8),
                 ],
                 if (!locked)
                   PopupMenuButton<String>(
@@ -447,22 +509,21 @@ class _CueTile extends StatelessWidget {
                           onMoveUp?.call();
                         case 'down':
                           onMoveDown?.call();
+                        case 'copy':
+                          onCopy();
                         case 'delete':
                           onDelete();
                       }
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'edit',
-                        child: _MenuRow(
-                          icon: Icons.tune,
-                          label: '编辑参数',
-                        ),
+                        child: _MenuRow(icon: Icons.tune, label: '编辑参数'),
                       ),
                       PopupMenuItem(
                         value: 'up',
                         enabled: onMoveUp != null,
-                        child: const _MenuRow(
+                        child: _MenuRow(
                           icon: Icons.arrow_upward,
                           label: '上移',
                         ),
@@ -470,12 +531,16 @@ class _CueTile extends StatelessWidget {
                       PopupMenuItem(
                         value: 'down',
                         enabled: onMoveDown != null,
-                        child: const _MenuRow(
+                        child: _MenuRow(
                           icon: Icons.arrow_downward,
                           label: '下移',
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
+                        value: 'copy',
+                        child: _MenuRow(icon: Icons.copy_outlined, label: '复制'),
+                      ),
+                      PopupMenuItem(
                         value: 'delete',
                         child: _MenuRow(
                           icon: Icons.delete_outline,
@@ -484,7 +549,7 @@ class _CueTile extends StatelessWidget {
                         ),
                       ),
                     ],
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.more_vert,
                       size: 20,
                       color: CueBoxColors.textFaint,
@@ -508,7 +573,7 @@ class _IndexBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: Duration(milliseconds: 200),
       width: 36,
       height: 36,
       alignment: Alignment.center,
@@ -523,7 +588,7 @@ class _IndexBadge extends StatelessWidget {
           fontSize: 13,
           fontWeight: FontWeight.w800,
           color: selected
-              ? const Color(0xFF002A36)
+              ? Color(0xFF002A36)
               : CueBoxColors.textSecondary,
         ),
       ),
@@ -548,7 +613,7 @@ class _MenuRow extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 19, color: color),
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
         Text(label, style: TextStyle(color: color)),
       ],
     );
@@ -560,6 +625,8 @@ class _CueHeader extends StatelessWidget {
     required this.cues,
     required this.selectedCueId,
     required this.onGo,
+    required this.canStop,
+    required this.onStopAll,
     required this.onEditSelected,
     required this.locked,
   });
@@ -567,6 +634,8 @@ class _CueHeader extends StatelessWidget {
   final List<Cue> cues;
   final String? selectedCueId;
   final VoidCallback onGo;
+  final bool canStop;
+  final VoidCallback onStopAll;
   final VoidCallback onEditSelected;
   final bool locked;
 
@@ -589,8 +658,8 @@ class _CueHeader extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 2),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.fromLTRB(16, 8, 16, 2),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: CueBoxColors.surface,
         borderRadius: BorderRadius.circular(18),
@@ -611,7 +680,7 @@ class _CueHeader extends StatelessWidget {
       child: Row(
         children: [
           _GoButton(enabled: enabled, onPressed: onGo),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -620,12 +689,12 @@ class _CueHeader extends StatelessWidget {
                   nameText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   noteText,
                   maxLines: 1,
@@ -640,12 +709,21 @@ class _CueHeader extends StatelessWidget {
               ],
             ),
           ),
+          IconButton(
+            tooltip: '停止全部',
+            visualDensity: VisualDensity.compact,
+            onPressed: canStop ? onStopAll : null,
+            color: canStop
+                ? CueBoxColors.danger
+                : CueBoxColors.textFaint.withValues(alpha: 0.4),
+            icon: Icon(Icons.stop_circle_outlined, size: 28),
+          ),
           if (selected != null && !locked)
             IconButton(
               tooltip: '编辑名称与备注',
               visualDensity: VisualDensity.compact,
               onPressed: onEditSelected,
-              icon: const Icon(
+              icon: Icon(
                 Icons.edit_outlined,
                 size: 20,
                 color: CueBoxColors.textSecondary,
@@ -666,40 +744,51 @@ class _GoButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
+      duration: Duration(milliseconds: 220),
       curve: Curves.easeOut,
-      width: 128,
-      height: 66,
+      width: 196,
+      height: 100,
       decoration: BoxDecoration(
         gradient: enabled ? CueBoxColors.accentGradient : null,
         color: enabled ? null : CueBoxColors.surfacePressed,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: enabled ? [CueBoxColors.glow] : null,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: enabled
+            ? [
+                CueBoxColors.glow,
+                BoxShadow(
+                  color: CueBoxColors.primary.withValues(alpha: 0.18),
+                  blurRadius: 42,
+                  spreadRadius: 2,
+                ),
+              ]
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           onTap: enabled ? onPressed : null,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.play_arrow_rounded,
-                size: 34,
-                color:
-                    enabled ? const Color(0xFF002A36) : CueBoxColors.textFaint,
+                size: 40,
+                color: enabled
+                    ? Color(0xFF002A36)
+                    : CueBoxColors.textFaint,
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Text(
                 'GO',
                 style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
-                  color:
-                      enabled ? const Color(0xFF002A36) : CueBoxColors.textFaint,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                  color: enabled
+                      ? Color(0xFF002A36)
+                      : CueBoxColors.textFaint,
                 ),
               ),
             ],

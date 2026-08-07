@@ -12,5 +12,5 @@ Future<void> main() async {
   if (!Platform.isWindows && !Platform.isLinux) {
     await configureAudioSession();
   }
-  runApp(const ProviderScope(child: CueBoxApp()));
+  runApp(ProviderScope(child: CueBoxApp()));
 }

@@ -9,7 +9,7 @@ import 'package:audio_session/audio_session.dart';
 Future<void> configureAudioSession() async {
   final session = await AudioSession.instance;
   await session.configure(
-    const AudioSessionConfiguration(
+    AudioSessionConfiguration(
       avAudioSessionCategory: AVAudioSessionCategory.playback,
       androidAudioAttributes: AndroidAudioAttributes(
         contentType: AndroidAudioContentType.music,

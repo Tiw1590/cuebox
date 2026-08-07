@@ -2,7 +2,7 @@ import '../../core/platform/media_access.dart';
 
 /// 素材根目录：用户通过 SAF 选择的设备本地目录。
 class MediaRoot {
-  const MediaRoot({required this.uri, required this.name});
+  MediaRoot({required this.uri, required this.name});
 
   final String uri;
   final String name;
@@ -10,7 +10,7 @@ class MediaRoot {
 
 /// 素材池中的一个条目（文件夹或音频文件）。
 class MediaItem {
-  const MediaItem({
+  MediaItem({
     required this.uri,
     required this.name,
     required this.isDirectory,

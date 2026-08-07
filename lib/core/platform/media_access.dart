@@ -5,7 +5,7 @@ import 'saf_channel.dart';
 
 /// 素材池中的一个条目（文件夹或音频文件），与平台无关。
 class MediaEntry {
-  const MediaEntry({
+  MediaEntry({
     required this.uri,
     required this.name,
     required this.mime,
@@ -39,6 +39,14 @@ abstract class MediaAccess {
       Platform.isAndroid ? SafMediaAccess() : LocalMediaAccess();
 }
 
+/// 判断文件路径是否为支持的音频文件（桌面端拖放导入用）。
+bool isAudioPath(String path) {
+  final dot = path.lastIndexOf('.');
+  if (dot < 0) return false;
+  final ext = path.substring(dot + 1).toLowerCase();
+  return LocalMediaAccess._audioExtensions.containsKey(ext);
+}
+
 class SafMediaAccess implements MediaAccess {
   @override
   Future<String?> pickDirectory() => SafChannel.pickDirectory();
@@ -70,7 +78,8 @@ class SafMediaAccess implements MediaAccess {
 class LocalMediaAccess implements MediaAccess {
   /// 桌面端默认素材目录：~/Music/CueBox。
   static String defaultRootPath() {
-    final home = Platform.environment['USERPROFILE'] ??
+    final home =
+        Platform.environment['USERPROFILE'] ??
         Platform.environment['HOME'] ??
         '';
     return '$home/Music/CueBox';
@@ -90,10 +99,16 @@ class LocalMediaAccess implements MediaAccess {
     try {
       final bytes = file.readAsBytesSync();
       if (bytes.length < 44) return null;
-      if (bytes[0] != 0x52 || bytes[1] != 0x49 || bytes[2] != 0x46 || bytes[3] != 0x46) {
+      if (bytes[0] != 0x52 ||
+          bytes[1] != 0x49 ||
+          bytes[2] != 0x46 ||
+          bytes[3] != 0x46) {
         return null;
       }
-      if (bytes[8] != 0x57 || bytes[9] != 0x41 || bytes[10] != 0x56 || bytes[11] != 0x45) {
+      if (bytes[8] != 0x57 ||
+          bytes[9] != 0x41 ||
+          bytes[10] != 0x56 ||
+          bytes[11] != 0x45) {
         return null;
       }
 
@@ -132,7 +147,10 @@ class LocalMediaAccess implements MediaAccess {
           final norm = v / 32768.0;
           amp += norm * norm;
         }
-        final bucket = ((i * peakCount) ~/ totalSamples).clamp(0, peakCount - 1);
+        final bucket = ((i * peakCount) ~/ totalSamples).clamp(
+          0,
+          peakCount - 1,
+        );
         sums[bucket] += amp / channels;
         counts[bucket]++;
       }

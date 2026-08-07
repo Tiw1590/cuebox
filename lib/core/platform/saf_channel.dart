@@ -20,7 +20,7 @@ class SafChannel {
       'listChildren',
       <String, Object?>{'uri': uri},
     );
-    return (raw ?? const [])
+    return (raw ?? [])
         .map((e) => SafEntry.fromMap(Map<String, dynamic>.from(e)))
         .toList();
   }
@@ -43,7 +43,7 @@ class SafChannel {
 
 /// SAF 里的一个目录/文件条目。
 class SafEntry {
-  const SafEntry({
+  SafEntry({
     required this.uri,
     required this.name,
     required this.mime,

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -64,8 +65,7 @@ class WaveformFullscreenPage extends StatefulWidget {
   }
 
   @override
-  State<WaveformFullscreenPage> createState() =>
-      _WaveformFullscreenPageState();
+  State<WaveformFullscreenPage> createState() => _WaveformFullscreenPageState();
 }
 
 class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
@@ -104,7 +104,9 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
       }
     });
     unawaited(
-      player.setAudioSource(AudioSource.uri(Uri.parse(widget.uri))).catchError((_) {
+      player.setAudioSource(AudioSource.uri(Uri.parse(widget.uri))).catchError((
+        _,
+      ) {
         // 仅用于获取时长，失败不影响微调。
         return null;
       }),
@@ -152,6 +154,16 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
     widget.onStartChanged(p);
   }
 
+  void _setEndFromPlayhead() {
+    final p = _previewStartMs;
+    if (p == null) return;
+    final minGap = _totalMs <= 0 ? 100 : math.max(100, _totalMs ~/ 200);
+    var newEnd = p <= _startMs ? _startMs + minGap : p;
+    if (newEnd >= _totalMs) newEnd = 0; // 0 表示文件末尾
+    setState(() => _endMs = newEnd);
+    widget.onEndChanged(newEnd);
+  }
+
   void _resetAll() {
     setState(() {
       _startMs = 0;
@@ -168,34 +180,34 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
     return Scaffold(
       backgroundColor: CueBoxColors.background,
       appBar: AppBar(
-        title: const Text('微调播放区间'),
+        title: Text('微调播放区间'),
         leading: IconButton(
           tooltip: '返回',
-          icon: const Icon(Icons.close),
+          icon: Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('完成'),
+            child: Text('完成'),
           ),
         ],
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.touch_app_outlined,
                     size: 14,
                     color: CueBoxColors.textFaint,
                   ),
-                  const SizedBox(width: 6),
-                  const Expanded(
+                  SizedBox(width: 6),
+                  Expanded(
                     child: Text(
                       '点按波形设置试听起点，拖动左右手柄微调播放区间',
                       style: TextStyle(
@@ -206,7 +218,7 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               StreamBuilder<Duration>(
                 key: ValueKey('fs_preview_$_previewing'),
                 stream: _player?.positionStream,
@@ -239,16 +251,16 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
                   );
                 },
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.swap_vert_rounded,
                     size: 17,
                     color: CueBoxColors.textFaint,
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
+                  SizedBox(width: 8),
+                  Text(
                     '振幅',
                     style: TextStyle(
                       fontSize: 13.5,
@@ -269,7 +281,7 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
                     child: Text(
                       '×${_amplitudeScale.toStringAsFixed(1)}',
                       textAlign: TextAlign.right,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: CueBoxColors.primary,
@@ -278,7 +290,7 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
               Row(
                 children: [
                   _TimeLabel(
@@ -286,13 +298,13 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
                     text: _fmt(_startMs),
                     color: CueBoxColors.primary,
                   ),
-                  const Spacer(),
+                  Spacer(),
                   _TimeLabel(
                     label: '总长',
                     text: _fmt(_totalMs),
                     color: CueBoxColors.textFaint,
                   ),
-                  const Spacer(),
+                  Spacer(),
                   _TimeLabel(
                     label: '终点',
                     text: _fmt(_endMs > 0 ? _endMs : _totalMs),
@@ -300,58 +312,68 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Row(
                 children: [
-                  const Text(
+                  Text(
                     '试听起点',
                     style: TextStyle(
                       fontSize: 12.5,
                       color: CueBoxColors.textFaint,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
                     _fmt(_previewStartMs ?? _startMs),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: CueBoxColors.amber,
                     ),
                   ),
                   if (_previewStartMs != null) ...[
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     InkWell(
                       onTap: () {
                         setState(() => _previewStartMs = null);
                         widget.onPreviewStartChanged(0);
                       },
-                      child: const Icon(
+                      child: Icon(
                         Icons.close,
                         size: 15,
                         color: CueBoxColors.textFaint,
                       ),
                     ),
                   ],
-                  const Spacer(),
+                  Spacer(),
                   OutlinedButton.icon(
-                    onPressed: _previewStartMs != null ? _setStartFromPlayhead : null,
-                    icon: const Icon(Icons.flag_outlined, size: 17),
-                    label: const Text('设为起点'),
+                    onPressed: _previewStartMs != null
+                        ? _setStartFromPlayhead
+                        : null,
+                    icon: Icon(Icons.flag_outlined, size: 17),
+                    label: Text('设为起点'),
+                  ),
+                  SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: _previewStartMs != null
+                        ? _setEndFromPlayhead
+                        : null,
+                    icon: Icon(Icons.flag_rounded, size: 17),
+                    label: Text('设为终点'),
                   ),
                 ],
               ),
-              const Spacer(),
+              Spacer(),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _resetAll,
-                      icon: const Icon(Icons.restart_alt, size: 18),
-                      label: const Text('重置'),
+                      icon: Icon(Icons.restart_alt, size: 18),
+                      label: Text('重置'),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Expanded(
                     flex: 2,
                     child: FilledButton.icon(
@@ -365,9 +387,7 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
                       label: Text(
                         _previewing
                             ? '停止试听'
-                            : (_previewStartMs != null
-                                ? '从试听点播放'
-                                : '从起点播放'),
+                            : (_previewStartMs != null ? '从试听点播放' : '从起点播放'),
                       ),
                     ),
                   ),
@@ -399,16 +419,16 @@ class _TimeLabel extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: CueBoxColors.textFaint),
+          style: TextStyle(fontSize: 11, color: CueBoxColors.textFaint),
         ),
-        const SizedBox(height: 2),
+        SizedBox(height: 2),
         Text(
           text,
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w800,
             color: color,
-            fontFeatures: const [FontFeature.tabularFigures()],
+            fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),
       ],

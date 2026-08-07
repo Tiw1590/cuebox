@@ -1,4 +1,4 @@
-/// 工程类型：Cue 列表工程 或 Cart 格块工程（二者独立）。
+/// 工程类型：Cue 列表工程 或 Pad 工程（二者独立）。
 enum ShowKind { cue, cart }
 
 /// Cue 列表里的一条 cue：存储音频文件引用 + 播放参数。
@@ -20,8 +20,10 @@ class Cue {
   String name;
   final String uri;
   String note;
+
   /// 播放起点（毫秒），0 表示文件开头。
   int startMs;
+
   /// 播放终点（毫秒），0 表示文件结尾。
   int endMs;
   bool loop;
@@ -57,17 +59,17 @@ class Cue {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'uri': uri,
-        'note': note,
-        'startMs': startMs,
-        'endMs': endMs,
-        'loop': loop,
-        'volume': volume,
-        'fadeInMs': fadeInMs,
-        'fadeOutMs': fadeOutMs,
-      };
+    'id': id,
+    'name': name,
+    'uri': uri,
+    'note': note,
+    'startMs': startMs,
+    'endMs': endMs,
+    'loop': loop,
+    'volume': volume,
+    'fadeInMs': fadeInMs,
+    'fadeOutMs': fadeOutMs,
+  };
 
   factory Cue.fromJson(Map<String, dynamic> json) {
     return Cue(
@@ -85,12 +87,17 @@ class Cue {
   }
 }
 
-/// Cart 格块里的一个格子：音频引用 + 触发方式（solo/叠放）。
+/// Pad 里的一个格子：音频引用 + 触发方式（solo/叠放）。
 class CartSlot {
   CartSlot({
     required this.id,
     required this.name,
     required this.uri,
+    this.note = '',
+    this.startMs = 0,
+    this.endMs = 0,
+    this.shortcutKeyId,
+    this.shortcutLabel,
     this.solo = true,
     this.loop = false,
     this.volume = 1.0,
@@ -101,6 +108,19 @@ class CartSlot {
   final String id;
   String name;
   final String uri;
+  String note;
+
+  /// 播放起点（毫秒），0 表示文件开头。
+  int startMs;
+
+  /// 播放终点（毫秒），0 表示文件结尾。
+  int endMs;
+
+  /// 快捷键（LogicalKeyboardKey.keyId），null 表示未设置。
+  int? shortcutKeyId;
+
+  /// 快捷键显示名称（如 A / 5 / F1）。
+  String? shortcutLabel;
   bool solo;
   bool loop;
   double volume;
@@ -112,6 +132,11 @@ class CartSlot {
 
   CartSlot copyWith({
     String? name,
+    String? note,
+    int? startMs,
+    int? endMs,
+    int? shortcutKeyId,
+    String? shortcutLabel,
     bool? solo,
     bool? loop,
     double? volume,
@@ -122,6 +147,11 @@ class CartSlot {
       id: id,
       name: name ?? this.name,
       uri: uri,
+      note: note ?? this.note,
+      startMs: startMs ?? this.startMs,
+      endMs: endMs ?? this.endMs,
+      shortcutKeyId: shortcutKeyId ?? this.shortcutKeyId,
+      shortcutLabel: shortcutLabel ?? this.shortcutLabel,
       solo: solo ?? this.solo,
       loop: loop ?? this.loop,
       volume: volume ?? this.volume,
@@ -131,21 +161,31 @@ class CartSlot {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'uri': uri,
-        'solo': solo,
-        'loop': loop,
-        'volume': volume,
-        'fadeInMs': fadeInMs,
-        'fadeOutMs': fadeOutMs,
-      };
+    'id': id,
+    'name': name,
+    'uri': uri,
+    'note': note,
+    'startMs': startMs,
+    'endMs': endMs,
+    'shortcutKeyId': shortcutKeyId,
+    'shortcutLabel': shortcutLabel,
+    'solo': solo,
+    'loop': loop,
+    'volume': volume,
+    'fadeInMs': fadeInMs,
+    'fadeOutMs': fadeOutMs,
+  };
 
   factory CartSlot.fromJson(Map<String, dynamic> json) {
     return CartSlot(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       uri: json['uri'] as String? ?? '',
+      note: json['note'] as String? ?? '',
+      startMs: (json['startMs'] as num?)?.toInt() ?? 0,
+      endMs: (json['endMs'] as num?)?.toInt() ?? 0,
+      shortcutKeyId: (json['shortcutKeyId'] as num?)?.toInt(),
+      shortcutLabel: json['shortcutLabel'] as String?,
       solo: json['solo'] as bool? ?? true,
       loop: json['loop'] as bool? ?? false,
       volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
@@ -155,7 +195,7 @@ class CartSlot {
   }
 }
 
-/// 整场演出数据：Cue 列表 + Cart 格块（两种视图共享）。
+/// 整场演出数据：Cue 列表 + Pad（两种视图共享）。
 class Show {
   Show({
     String? id,
@@ -168,19 +208,21 @@ class Show {
     this.defaultFadeInMs = 20,
     this.defaultFadeOutMs = 150,
     this.defaultLoop = false,
-  })  : id = (id == null || id.isEmpty)
-            ? 'show_${DateTime.now().microsecondsSinceEpoch}'
-            : id,
-        cues = cues ?? [],
-        cartSlots = cartSlots ?? [];
+  }) : id = (id == null || id.isEmpty)
+           ? 'show_${DateTime.now().microsecondsSinceEpoch}'
+           : id,
+       cues = cues ?? [],
+       cartSlots = cartSlots ?? [];
 
   final String id;
   final String name;
   final ShowKind kind;
   final List<Cue> cues;
   final List<CartSlot> cartSlots;
+
   /// 演出锁定：隐藏编辑与误操作入口，仅保留播放操作。
   final bool locked;
+
   /// 工程默认播放参数（新加入的音频使用）。
   final double defaultVolume;
   final int defaultFadeInMs;
@@ -213,28 +255,29 @@ class Show {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'kind': kind.name,
-        'locked': locked,
-        'defaultVolume': defaultVolume,
-        'defaultFadeInMs': defaultFadeInMs,
-        'defaultFadeOutMs': defaultFadeOutMs,
-        'defaultLoop': defaultLoop,
-        'cues': cues.map((c) => c.toJson()).toList(),
-        'cartSlots': cartSlots.map((c) => c.toJson()).toList(),
-      };
+    'id': id,
+    'name': name,
+    'kind': kind.name,
+    'locked': locked,
+    'defaultVolume': defaultVolume,
+    'defaultFadeInMs': defaultFadeInMs,
+    'defaultFadeOutMs': defaultFadeOutMs,
+    'defaultLoop': defaultLoop,
+    'cues': cues.map((c) => c.toJson()).toList(),
+    'cartSlots': cartSlots.map((c) => c.toJson()).toList(),
+  };
 
   factory Show.fromJson(Map<String, dynamic> json) {
     return Show(
       id: json['id'] as String?,
       name: json['name'] as String? ?? '我的演出',
-      kind: ShowKind.values.asNameMap()[json['kind'] as String?] ??
+      kind:
+          ShowKind.values.asNameMap()[json['kind'] as String?] ??
           ((json['cues'] as List<dynamic>? ?? []).isNotEmpty
               ? ShowKind.cue
               : (json['cartSlots'] as List<dynamic>? ?? []).isNotEmpty
-                  ? ShowKind.cart
-                  : ShowKind.cue),
+              ? ShowKind.cart
+              : ShowKind.cue),
       locked: json['locked'] as bool? ?? false,
       defaultVolume: (json['defaultVolume'] as num?)?.toDouble() ?? 1.0,
       defaultFadeInMs: (json['defaultFadeInMs'] as num?)?.toInt() ?? 20,
@@ -252,20 +295,18 @@ class Show {
 
 /// 演出库：多个演出 + 当前激活的演出 id。
 class ShowLibrary {
-  const ShowLibrary({required this.shows, required this.activeShowId});
+  ShowLibrary({required this.shows, required this.activeShowId});
 
   final List<Show> shows;
   final String activeShowId;
 
-  Show get activeShow => shows.firstWhere(
-        (s) => s.id == activeShowId,
-        orElse: () => shows.first,
-      );
+  Show get activeShow =>
+      shows.firstWhere((s) => s.id == activeShowId, orElse: () => shows.first);
 
   Map<String, dynamic> toJson() => {
-        'shows': shows.map((s) => s.toJson()).toList(),
-        'activeShowId': activeShowId,
-      };
+    'shows': shows.map((s) => s.toJson()).toList(),
+    'activeShowId': activeShowId,
+  };
 
   factory ShowLibrary.fromJson(Map<String, dynamic> json) {
     final rawShows = json['shows'];
@@ -296,7 +337,7 @@ class ShowLibrary {
       );
       final cartShow = Show(
         id: '${legacy.id}_cart',
-        name: '${legacy.name} · 格块',
+        name: '${legacy.name} · Card',
         kind: ShowKind.cart,
         cartSlots: legacy.cartSlots,
         locked: legacy.locked,

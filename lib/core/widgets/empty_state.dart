@@ -20,8 +20,8 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -30,22 +30,22 @@ class EmptyState extends StatelessWidget {
               height: 96,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0x0FFFFFFF),
-                border: Border.all(color: const Color(0x1FFFFFFF)),
+                color: Color(0x0FFFFFFF),
+                border: Border.all(color: Color(0x1FFFFFFF)),
               ),
               child: Icon(icon, size: 44, color: iconColor),
             ),
-            const SizedBox(height: 22),
+            SizedBox(height: 22),
             Text(
               title,
               style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
             if (subtitle != null) ...[
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
                 subtitle!,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Color(0xFF8FA3B8),
                   fontSize: 13,
                   height: 1.5,
@@ -54,7 +54,7 @@ class EmptyState extends StatelessWidget {
               ),
             ],
             if (action != null) ...[
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               action!,
             ],
           ],

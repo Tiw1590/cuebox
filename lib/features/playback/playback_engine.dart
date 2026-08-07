@@ -24,6 +24,7 @@ class ActivePlay {
   final double baseVolume;
   final Duration fadeOut;
   final AudioPlayer player;
+
   /// 逻辑条目标识（Cue id / Cart slot id / 试听标签），用于按条独立控制。
   final String? sourceId;
 
@@ -44,7 +45,7 @@ class PlaybackEngine extends Notifier<Map<String, ActivePlay>> {
       StreamController<String>.broadcast();
 
   @override
-  Map<String, ActivePlay> build() => const {};
+  Map<String, ActivePlay> build() => {};
 
   List<ActivePlay> get active => state.values.toList();
 
@@ -155,8 +156,9 @@ class PlaybackEngine extends Notifier<Map<String, ActivePlay>> {
 
   /// 停止指定音频 URI 的所有播放（用于素材池试听开关等）。
   Future<void> stopUri(String uri, {Duration? fadeOut}) async {
-    final targets =
-        state.values.where((p) => p.uri == uri && !p.isStopping).toList();
+    final targets = state.values
+        .where((p) => p.uri == uri && !p.isStopping)
+        .toList();
     await Future.wait(targets.map((p) => stopPlay(p.id, fadeOut: fadeOut)));
   }
 
@@ -184,8 +186,21 @@ class PlaybackEngine extends Notifier<Map<String, ActivePlay>> {
     } catch (_) {}
   }
 
+  /// 跳转到指定播放位置（走带条手动拖拽）。
+  Future<void> seekPlay(String id, Duration position) async {
+    final play = state[id];
+    if (play == null || play.isStopping) return;
+    try {
+      await play.player.seek(position);
+    } catch (_) {}
+  }
+
   /// 把音量从当前值渐变到 [target]。
-  Future<void> _fadeTo(AudioPlayer player, double target, Duration duration) async {
+  Future<void> _fadeTo(
+    AudioPlayer player,
+    double target,
+    Duration duration,
+  ) async {
     if (duration <= Duration.zero) {
       await player.setVolume(target);
       return;
@@ -193,7 +208,7 @@ class PlaybackEngine extends Notifier<Map<String, ActivePlay>> {
     final current = player.volume;
     final steps = max(1, (duration.inMilliseconds / 20).round());
     for (var i = 1; i <= steps; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await Future<void>.delayed(Duration(milliseconds: 20));
       final v = current + (target - current) * (i / steps);
       await player.setVolume(v.clamp(0.0, 1.0));
     }
@@ -211,7 +226,9 @@ class PlaybackEngine extends Notifier<Map<String, ActivePlay>> {
 }
 
 final playbackEngineProvider =
-    NotifierProvider<PlaybackEngine, Map<String, ActivePlay>>(PlaybackEngine.new);
+    NotifierProvider<PlaybackEngine, Map<String, ActivePlay>>(
+      PlaybackEngine.new,
+    );
 
 /// 当前走带焦点（最近触发且仍在播放中的条目）。
 final focusedPlayProvider = Provider<ActivePlay?>((ref) {

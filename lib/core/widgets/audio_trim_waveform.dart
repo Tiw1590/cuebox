@@ -159,14 +159,14 @@ class _Handle extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Icon(icon, size: 15, color: const Color(0xFF0A0E13)),
+        child: Icon(icon, size: 15, color: Color(0xFF0A0E13)),
       ),
     );
   }
 }
 
 class _WaveformPainter extends CustomPainter {
-  const _WaveformPainter({
+  _WaveformPainter({
     required this.peaks,
     required this.startFrac,
     required this.endFrac,
@@ -220,7 +220,7 @@ class _WaveformPainter extends CustomPainter {
           barThickness,
           h,
         ),
-        const Radius.circular(2),
+        Radius.circular(2),
       );
       canvas.drawRRect(rect, paint);
     }
