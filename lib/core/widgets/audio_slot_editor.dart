@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../platform/audio_uri.dart';
 import '../platform/waveform_cache.dart';
 import '../theme.dart';
 import 'audio_trim_waveform.dart';
@@ -229,7 +230,9 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
     });
     // 初始加载不阻塞：立即并行提取波形，避免被试听打断后波形迟迟不显示。
     unawaited(
-      player.setAudioSource(AudioSource.uri(Uri.parse(uri))).catchError((_) {
+      player.setAudioSource(AudioSource.uri(resolveAudioUri(uri))).catchError((
+        _,
+      ) {
         // 加载失败不影响波形显示与裁剪设置。
         return null;
       }),
@@ -299,7 +302,7 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
     final playFrom = _previewStartMs ?? _startMs;
     final end = _endMs > 0 ? _endMs : _totalMs;
     final UriAudioSource baseSource = AudioSource.uri(
-      Uri.parse(widget.waveformUri!),
+      resolveAudioUri(widget.waveformUri!),
     );
     AudioSource source = baseSource;
     if (playFrom > 0 || (end > 0 && end > playFrom)) {
@@ -373,10 +376,7 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
               FilledButton.tonal(
                 onPressed: _save,
                 style: FilledButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   minimumSize: Size(0, 36),
                   textStyle: TextStyle(
                     fontSize: 13.5,
@@ -548,10 +548,7 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
                 Spacer(),
                 Text(
                   '总长 ${_fmtSeconds(_totalMs)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: CueBoxColors.textFaint,
-                  ),
+                  style: TextStyle(fontSize: 12, color: CueBoxColors.textFaint),
                 ),
                 Spacer(),
                 Text(
@@ -795,15 +792,9 @@ class _ShortcutCaptureFieldState extends State<_ShortcutCaptureField> {
             FilledButton.tonal(
               onPressed: _startCapture,
               style: FilledButton.styleFrom(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 minimumSize: Size(0, 36),
-                textStyle: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+                textStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
               child: Text('录制'),
             ),
@@ -894,10 +885,7 @@ class _SwitchRow extends StatelessWidget {
                 SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    color: CueBoxColors.textFaint,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: CueBoxColors.textFaint, fontSize: 12),
                 ),
               ],
             ),

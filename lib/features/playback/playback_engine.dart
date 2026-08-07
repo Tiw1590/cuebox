@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../../core/platform/audio_uri.dart';
+
 /// 一次正在播放的触发。
 class ActivePlay {
   ActivePlay({
@@ -111,7 +113,7 @@ class PlaybackEngine extends Notifier<Map<String, ActivePlay>> {
     try {
       await player.setVolume(0);
       await player.setLoopMode(loop ? LoopMode.one : LoopMode.off);
-      final UriAudioSource baseSource = AudioSource.uri(Uri.parse(uri));
+      final UriAudioSource baseSource = AudioSource.uri(resolveAudioUri(uri));
       AudioSource source = baseSource;
       if (startMs > 0 || endMs > 0) {
         source = ClippingAudioSource(

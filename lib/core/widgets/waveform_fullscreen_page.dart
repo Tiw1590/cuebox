@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../platform/audio_uri.dart';
 import '../theme.dart';
 import 'audio_trim_waveform.dart';
 
@@ -104,12 +105,12 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
       }
     });
     unawaited(
-      player.setAudioSource(AudioSource.uri(Uri.parse(widget.uri))).catchError((
-        _,
-      ) {
-        // 仅用于获取时长，失败不影响微调。
-        return null;
-      }),
+      player
+          .setAudioSource(AudioSource.uri(resolveAudioUri(widget.uri)))
+          .catchError((_) {
+            // 仅用于获取时长，失败不影响微调。
+            return null;
+          }),
     );
   }
 
@@ -129,7 +130,7 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
     }
     final playFrom = _previewStartMs ?? _startMs;
     final end = _endMs > 0 ? _endMs : _totalMs;
-    final base = AudioSource.uri(Uri.parse(widget.uri));
+    final base = AudioSource.uri(resolveAudioUri(widget.uri));
     AudioSource source;
     if (playFrom > 0 || (end > 0 && end > playFrom)) {
       source = ClippingAudioSource(
