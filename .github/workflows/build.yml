@@ -71,3 +71,33 @@ jobs:
         with:
           name: cuebox-windows
           path: build/windows/x64/runner/Release
+
+  # ---------- 打包发布 Release（只在打 tag 时执行）----------
+  release:
+    name: Publish GitHub Release
+    needs: [android, ios, macos, windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: 打包各平台产物
+        shell: bash
+        run: |
+          set -e
+          mkdir -p dist
+          # Android
+          cp artifacts/cuebox-android-apk/*.apk dist/CueBox-android.apk
+          # Windows：压缩成 zip
+          (cd artifacts/cuebox-windows && zip -r ../../dist/CueBox-windows.zip .)
+          # macOS：压缩成 zip
+          (cd artifacts/cuebox-macos && zip -r ../../dist/CueBox-macos.zip .)
+          # iOS：未签名 .app 压缩
+          (cd artifacts/cuebox-ios-unsigned && zip -r ../../dist/CueBox-ios-unsigned.zip .)
+          ls -lh dist/
+      - name: 发布 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
