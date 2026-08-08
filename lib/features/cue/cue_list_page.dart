@@ -362,7 +362,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
         // 降级的控制项不占序号，其余保持连续编号。
         final demotedBefore = cues.take(index).where((c) => c.demoted).length;
         final displayNumber = index + 1 - demotedBefore;
-        final tile = Padding(
+        Widget tile = Padding(
           padding: EdgeInsets.only(bottom: 10),
           child: _CueTile(
             cue: cue,
@@ -408,6 +408,10 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             onEditFade: () => _editFadeTime(cue),
           ),
         );
+        if (cue.demoted) {
+          // 降级项作为上一项的从属子项：缩进显示。
+          tile = Padding(padding: const EdgeInsets.only(left: 28), child: tile);
+        }
         if (locked) {
           return KeyedSubtree(key: ValueKey(cue.id), child: tile);
         }
@@ -1342,14 +1346,22 @@ class _IndexBadge extends StatelessWidget {
         gradient: selected ? CueBoxColors.accentGradient : null,
         color: selected ? null : CueBoxColors.surfacePressed,
       ),
-      child: Text(
-        demoted ? '—' : number.toString().padLeft(2, '0'),
-        style: TextStyle(
-          fontSize: demoted ? 11 : 13,
-          fontWeight: FontWeight.w800,
-          color: selected ? Color(0xFF002A36) : CueBoxColors.textSecondary,
-        ),
-      ),
+      child: demoted
+          ? Icon(
+              Icons.subdirectory_arrow_right_rounded,
+              size: 15,
+              color: CueBoxColors.textFaint,
+            )
+          : Text(
+              number.toString().padLeft(2, '0'),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: selected
+                    ? Color(0xFF002A36)
+                    : CueBoxColors.textSecondary,
+              ),
+            ),
     );
   }
 }
