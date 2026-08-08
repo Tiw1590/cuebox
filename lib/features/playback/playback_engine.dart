@@ -183,20 +183,43 @@ class PlaybackEngine extends Notifier<Map<String, ActivePlay>> {
     } catch (_) {}
   }
 
-  /// 暂停指定逻辑条目的全部播放（控制 Cue 用）。
-  Future<void> pauseSource(String sourceId) async {
+  /// 暂停指定逻辑条目的全部播放（控制 Cue 用，可带淡出）。
+  Future<void> pauseSource(
+    String sourceId, {
+    Duration fadeOut = Duration.zero,
+  }) async {
     final targets = state.values
         .where((p) => p.sourceId == sourceId && !p.isStopping)
         .toList();
-    await Future.wait(targets.map((p) => pausePlay(p.id)));
+    for (final p in targets) {
+      if (fadeOut > Duration.zero) {
+        try {
+          await _fadeTo(p.player, 0, fadeOut);
+        } catch (_) {}
+      }
+      await pausePlay(p.id);
+    }
   }
 
-  /// 恢复指定逻辑条目的全部播放（控制 Cue 用）。
-  Future<void> resumeSource(String sourceId) async {
+  /// 恢复指定逻辑条目的全部播放（控制 Cue 用，可带淡入）。
+  Future<void> resumeSource(
+    String sourceId, {
+    Duration fadeIn = Duration.zero,
+  }) async {
     final targets = state.values
         .where((p) => p.sourceId == sourceId && !p.isStopping)
         .toList();
-    await Future.wait(targets.map((p) => resumePlay(p.id)));
+    for (final p in targets) {
+      if (fadeIn > Duration.zero) {
+        try {
+          await p.player.setVolume(0);
+          await p.player.play();
+          await _fadeTo(p.player, p.baseVolume, fadeIn);
+        } catch (_) {}
+      } else {
+        await resumePlay(p.id);
+      }
+    }
   }
 
   Future<void> resumePlay(String id) async {

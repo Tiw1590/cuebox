@@ -307,7 +307,10 @@ class CueController extends Notifier<CueControlState> {
     switch (cue.controlAction!) {
       case ControlAction.play:
         if (engine.isPlayingSource(target.id)) {
-          await engine.resumeSource(target.id);
+          await engine.resumeSource(
+            target.id,
+            fadeIn: Duration(milliseconds: cue.fadeInMs),
+          );
         } else {
           final volume = target.followGlobal
               ? (show?.defaultVolume ?? 1.0)
@@ -329,7 +332,10 @@ class CueController extends Notifier<CueControlState> {
           );
         }
       case ControlAction.pause:
-        await engine.pauseSource(target.id);
+        await engine.pauseSource(
+          target.id,
+          fadeOut: Duration(milliseconds: cue.fadeOutMs),
+        );
       case ControlAction.stop:
         await engine.stopSource(
           target.id,
