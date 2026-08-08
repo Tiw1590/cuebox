@@ -25,6 +25,7 @@ class SlotEditResult {
     this.endMs = 0,
     this.preWaitMs = 0,
     this.postWaitMs = 0,
+    this.followGlobal = false,
     this.shortcutKeyId,
     this.shortcutLabel,
   });
@@ -40,6 +41,7 @@ class SlotEditResult {
   final int endMs;
   final int preWaitMs;
   final int postWaitMs;
+  final bool followGlobal;
   final int? shortcutKeyId;
   final String? shortcutLabel;
 }
@@ -77,6 +79,12 @@ Future<void> showAudioSlotEditor({
   bool showWait = false,
   int initialPreWaitMs = 0,
   int initialPostWaitMs = 0,
+  bool showFollowGlobal = false,
+  bool initialFollowGlobal = false,
+  double globalVolume = 1.0,
+  int globalFadeInMs = 20,
+  int globalFadeOutMs = 150,
+  bool globalLoop = false,
   bool showShortcut = false,
   int? initialShortcutKeyId,
   String? initialShortcutLabel,
@@ -113,6 +121,12 @@ Future<void> showAudioSlotEditor({
         showWait: showWait,
         initialPreWaitMs: initialPreWaitMs,
         initialPostWaitMs: initialPostWaitMs,
+        showFollowGlobal: showFollowGlobal,
+        initialFollowGlobal: initialFollowGlobal,
+        globalVolume: globalVolume,
+        globalFadeInMs: globalFadeInMs,
+        globalFadeOutMs: globalFadeOutMs,
+        globalLoop: globalLoop,
         showShortcut: showShortcut,
         initialShortcutKeyId: initialShortcutKeyId,
         initialShortcutLabel: initialShortcutLabel,
@@ -148,6 +162,12 @@ class AudioSlotEditorPanel extends StatefulWidget {
     this.showWait = false,
     this.initialPreWaitMs = 0,
     this.initialPostWaitMs = 0,
+    this.showFollowGlobal = false,
+    this.initialFollowGlobal = false,
+    this.globalVolume = 1.0,
+    this.globalFadeInMs = 20,
+    this.globalFadeOutMs = 150,
+    this.globalLoop = false,
     this.showShortcut = false,
     this.initialShortcutKeyId,
     this.initialShortcutLabel,
@@ -172,6 +192,12 @@ class AudioSlotEditorPanel extends StatefulWidget {
   final bool showWait;
   final int initialPreWaitMs;
   final int initialPostWaitMs;
+  final bool showFollowGlobal;
+  final bool initialFollowGlobal;
+  final double globalVolume;
+  final int globalFadeInMs;
+  final int globalFadeOutMs;
+  final bool globalLoop;
   final bool showShortcut;
   final int? initialShortcutKeyId;
   final String? initialShortcutLabel;
@@ -196,6 +222,7 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
   late int _endMs;
   late int _preWaitMs;
   late int _postWaitMs;
+  late bool _followGlobal;
   int? _previewStartMs;
   int? _shortcutKeyId;
   String? _shortcutLabel;
@@ -212,10 +239,18 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName);
     _noteController = TextEditingController(text: widget.initialNote);
-    _volume = widget.initialVolume;
-    _fadeInMs = widget.initialFadeInMs;
-    _fadeOutMs = widget.initialFadeOutMs;
-    _loop = widget.initialLoop;
+    _followGlobal = widget.initialFollowGlobal;
+    // 跟随全局时显示全局值，让所见即所播。
+    _volume = widget.initialFollowGlobal
+        ? widget.globalVolume
+        : widget.initialVolume;
+    _fadeInMs = widget.initialFollowGlobal
+        ? widget.globalFadeInMs
+        : widget.initialFadeInMs;
+    _fadeOutMs = widget.initialFollowGlobal
+        ? widget.globalFadeOutMs
+        : widget.initialFadeOutMs;
+    _loop = widget.initialFollowGlobal ? widget.globalLoop : widget.initialLoop;
     _solo = widget.initialSolo;
     _startMs = widget.initialStartMs;
     _endMs = widget.initialEndMs;
@@ -297,6 +332,7 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
         endMs: _endMs,
         preWaitMs: _preWaitMs,
         postWaitMs: _postWaitMs,
+        followGlobal: _followGlobal,
         shortcutKeyId: _shortcutKeyId,
         shortcutLabel: _shortcutLabel,
       ),
@@ -624,6 +660,23 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
               onChanged: (v) => setState(() => _postWaitMs = v.round()),
             ),
           ],
+          if (widget.showFollowGlobal)
+            _SwitchRow(
+              title: '跟随全局参数',
+              subtitle: '使用项目全局参数；关闭后可单独设置本音频',
+              value: _followGlobal,
+              onChanged: (v) {
+                setState(() {
+                  _followGlobal = v;
+                  if (!v) {
+                    _volume = widget.globalVolume;
+                    _fadeInMs = widget.globalFadeInMs;
+                    _fadeOutMs = widget.globalFadeOutMs;
+                    _loop = widget.globalLoop;
+                  }
+                });
+              },
+            ),
           _SliderRow(
             label: '音量',
             valueLabel: '${(_volume * 100).round()}%',

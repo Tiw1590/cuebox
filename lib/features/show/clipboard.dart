@@ -22,6 +22,7 @@ class ClipboardItem {
     required this.endMs,
     required this.preWaitMs,
     required this.postWaitMs,
+    required this.followGlobal,
     this.solo = true,
     this.shortcutKeyId,
     this.shortcutLabel,
@@ -39,6 +40,7 @@ class ClipboardItem {
   final int endMs;
   final int preWaitMs;
   final int postWaitMs;
+  final bool followGlobal;
   final bool solo;
   final int? shortcutKeyId;
   final String? shortcutLabel;
@@ -57,6 +59,7 @@ class ClipboardItem {
       endMs: cue.endMs,
       preWaitMs: cue.preWaitMs,
       postWaitMs: cue.postWaitMs,
+      followGlobal: cue.followGlobal,
     );
   }
 
@@ -74,6 +77,7 @@ class ClipboardItem {
       endMs: slot.endMs,
       preWaitMs: 0,
       postWaitMs: 0,
+      followGlobal: true,
       solo: slot.solo,
       shortcutKeyId: slot.shortcutKeyId,
       shortcutLabel: slot.shortcutLabel,
@@ -118,6 +122,7 @@ Future<void> pasteClipboard(WidgetRef ref, BuildContext context) async {
           endMs: item.endMs,
           preWaitMs: item.preWaitMs,
           postWaitMs: item.postWaitMs,
+          followGlobal: item.followGlobal,
         );
     messenger.showSnackBar(SnackBar(content: Text('已粘贴 Cue「${item.name}」')));
   } else if (show.kind == ShowKind.cart && item.kind == ClipboardKind.card) {

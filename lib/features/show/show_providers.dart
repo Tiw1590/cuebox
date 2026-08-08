@@ -91,6 +91,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
                   postWaitMs: c.postWaitMs,
                   autoNext: c.autoNext,
                   playNextTogether: c.playNextTogether,
+                  followGlobal: c.followGlobal,
                   loop: c.loop,
                   volume: c.volume,
                   fadeInMs: c.fadeInMs,
@@ -222,6 +223,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
             fadeInMs: show.defaultFadeInMs,
             fadeOutMs: show.defaultFadeOutMs,
             loop: show.defaultLoop,
+            followGlobal: true,
           ),
         ],
       ),
@@ -242,6 +244,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
               fadeInMs: show.defaultFadeInMs,
               fadeOutMs: show.defaultFadeOutMs,
               loop: show.defaultLoop,
+              followGlobal: true,
             ),
         ],
       ),
@@ -260,6 +263,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
     int endMs = 0,
     int preWaitMs = 0,
     int postWaitMs = 0,
+    bool followGlobal = true,
   }) {
     return _mutateShow(
       (show) => show.copyWith(
@@ -278,6 +282,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
             endMs: endMs,
             preWaitMs: preWaitMs,
             postWaitMs: postWaitMs,
+            followGlobal: followGlobal,
           ),
         ],
       ),

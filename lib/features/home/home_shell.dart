@@ -126,7 +126,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               ),
               PopupMenuItem(
                 value: 'project_settings',
-                child: _MenuRow(icon: Icons.tune, label: '工程参数'),
+                child: _MenuRow(icon: Icons.tune, label: '全局参数'),
               ),
               PopupMenuDivider(),
               PopupMenuItem(

@@ -14,6 +14,7 @@ class Cue {
     this.postWaitMs = 0,
     this.autoNext = false,
     this.playNextTogether = false,
+    this.followGlobal = true,
     this.loop = false,
     this.volume = 1.0,
     this.fadeInMs = 20,
@@ -42,6 +43,9 @@ class Cue {
 
   /// 触发时同时播放下一个。
   bool playNextTogether;
+
+  /// 跟随全局（项目默认）参数；关闭后以本音频自己的参数为准。
+  bool followGlobal;
   bool loop;
   double volume;
   int fadeInMs;
@@ -59,6 +63,7 @@ class Cue {
     int? postWaitMs,
     bool? autoNext,
     bool? playNextTogether,
+    bool? followGlobal,
     bool? loop,
     double? volume,
     int? fadeInMs,
@@ -75,6 +80,7 @@ class Cue {
       postWaitMs: postWaitMs ?? this.postWaitMs,
       autoNext: autoNext ?? this.autoNext,
       playNextTogether: playNextTogether ?? this.playNextTogether,
+      followGlobal: followGlobal ?? this.followGlobal,
       loop: loop ?? this.loop,
       volume: volume ?? this.volume,
       fadeInMs: fadeInMs ?? this.fadeInMs,
@@ -93,6 +99,7 @@ class Cue {
     'postWaitMs': postWaitMs,
     'autoNext': autoNext,
     'playNextTogether': playNextTogether,
+    'followGlobal': followGlobal,
     'loop': loop,
     'volume': volume,
     'fadeInMs': fadeInMs,
@@ -111,6 +118,7 @@ class Cue {
       postWaitMs: (json['postWaitMs'] as num?)?.toInt() ?? 0,
       autoNext: json['autoNext'] as bool? ?? false,
       playNextTogether: json['playNextTogether'] as bool? ?? false,
+      followGlobal: json['followGlobal'] as bool? ?? true,
       loop: json['loop'] as bool? ?? false,
       volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
       fadeInMs: (json['fadeInMs'] as num?)?.toInt() ?? 20,

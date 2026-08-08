@@ -59,10 +59,10 @@ class _ProjectSettingsSheetState extends ConsumerState<_ProjectSettingsSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('工程参数', style: Theme.of(context).textTheme.titleLarge),
+              Text('全局参数', style: Theme.of(context).textTheme.titleLarge),
               SizedBox(height: 4),
               Text(
-                '作为新加入音频的默认播放参数',
+                '仅对本演出项目生效；单独设置过的音频以它自己为准',
                 style: TextStyle(fontSize: 12.5, color: CueBoxColors.textFaint),
               ),
               SizedBox(height: 12),

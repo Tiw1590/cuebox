@@ -163,16 +163,26 @@ class CueController extends Notifier<CueControlState> {
     }
     state = state.copyWith(waitingCueId: null, waitingPhase: null);
     final engine = ref.read(playbackEngineProvider.notifier);
+    // 优先级：音频单独设置（followGlobal=false）用自己参数，否则用项目全局参数。
+    final show = ref.read(showProvider).valueOrNull?.activeShow;
+    final volume = cue.followGlobal ? (show?.defaultVolume ?? 1.0) : cue.volume;
+    final loop = cue.followGlobal ? (show?.defaultLoop ?? false) : cue.loop;
+    final fadeInMs = cue.followGlobal
+        ? (show?.defaultFadeInMs ?? 20)
+        : cue.fadeInMs;
+    final fadeOutMs = cue.followGlobal
+        ? (show?.defaultFadeOutMs ?? 150)
+        : cue.fadeOutMs;
     final playId = await engine.trigger(
       uri: cue.uri,
       label: cue.name,
       sourceId: cue.id,
       startMs: cue.startMs,
       endMs: cue.endMs,
-      loop: cue.loop,
-      volume: cue.volume,
-      fadeIn: cue.fadeIn,
-      fadeOut: cue.fadeOut,
+      loop: loop,
+      volume: volume,
+      fadeIn: Duration(milliseconds: fadeInMs),
+      fadeOut: Duration(milliseconds: fadeOutMs),
       stopOthers: true,
     );
     if (playId != null) {
@@ -204,16 +214,28 @@ class CueController extends Notifier<CueControlState> {
           }
           state = state.copyWith(waitingCueId: null, waitingPhase: null);
         }
+        final nextVolume = next.followGlobal
+            ? (show?.defaultVolume ?? 1.0)
+            : next.volume;
+        final nextLoop = next.followGlobal
+            ? (show?.defaultLoop ?? false)
+            : next.loop;
+        final nextFadeInMs = next.followGlobal
+            ? (show?.defaultFadeInMs ?? 20)
+            : next.fadeInMs;
+        final nextFadeOutMs = next.followGlobal
+            ? (show?.defaultFadeOutMs ?? 150)
+            : next.fadeOutMs;
         await engine.trigger(
           uri: next.uri,
           label: next.name,
           sourceId: next.id,
           startMs: next.startMs,
           endMs: next.endMs,
-          loop: next.loop,
-          volume: next.volume,
-          fadeIn: next.fadeIn,
-          fadeOut: next.fadeOut,
+          loop: nextLoop,
+          volume: nextVolume,
+          fadeIn: Duration(milliseconds: nextFadeInMs),
+          fadeOut: Duration(milliseconds: nextFadeOutMs),
           stopOthers: false,
         );
         consumed = 2;
