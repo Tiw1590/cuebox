@@ -265,6 +265,24 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
     }
   }
 
+  @override
+  void didUpdateWidget(AudioSlotEditorPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 跟随全局时，全局参数变化会让面板里的值自动同步。
+    if (_followGlobal &&
+        (oldWidget.globalVolume != widget.globalVolume ||
+            oldWidget.globalFadeInMs != widget.globalFadeInMs ||
+            oldWidget.globalFadeOutMs != widget.globalFadeOutMs ||
+            oldWidget.globalLoop != widget.globalLoop)) {
+      setState(() {
+        _volume = widget.globalVolume;
+        _fadeInMs = widget.globalFadeInMs;
+        _fadeOutMs = widget.globalFadeOutMs;
+        _loop = widget.globalLoop;
+      });
+    }
+  }
+
   Future<void> _loadWaveform() async {
     final uri = widget.waveformUri!;
     if (mounted) setState(() => _waveformLoading = true);
@@ -677,6 +695,14 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
                 });
               },
             ),
+          if (widget.showFollowGlobal && _followGlobal)
+            Padding(
+              padding: EdgeInsets.only(top: 2, bottom: 4),
+              child: Text(
+                '跟随全局：下方参数自动同步全局，修改全局后这里会更新',
+                style: TextStyle(fontSize: 11.5, color: CueBoxColors.textFaint),
+              ),
+            ),
           _SliderRow(
             label: '音量',
             valueLabel: '${(_volume * 100).round()}%',
@@ -684,6 +710,7 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
             min: 0,
             max: 1,
             divisions: 20,
+            enabled: !_followGlobal,
             onChanged: (v) => setState(() => _volume = v),
           ),
           _SliderRow(
@@ -693,6 +720,7 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
             min: 0,
             max: 3000,
             divisions: 60,
+            enabled: !_followGlobal,
             onChanged: (v) => setState(() => _fadeInMs = v.round()),
           ),
           _SliderRow(
@@ -702,6 +730,7 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
             min: 0,
             max: 5000,
             divisions: 100,
+            enabled: !_followGlobal,
             onChanged: (v) => setState(() => _fadeOutMs = v.round()),
           ),
           SizedBox(height: 8),
@@ -716,6 +745,7 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
             title: '循环播放',
             subtitle: '声音播完自动从头继续',
             value: _loop,
+            enabled: !_followGlobal,
             onChanged: (v) => setState(() => _loop = v),
           ),
           if (widget.showShortcut) ...[
@@ -915,6 +945,7 @@ class _SliderRow extends StatelessWidget {
     required this.max,
     required this.divisions,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final String label;
@@ -924,6 +955,7 @@ class _SliderRow extends StatelessWidget {
   final double max;
   final int divisions;
   final ValueChanged<double> onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -939,7 +971,7 @@ class _SliderRow extends StatelessWidget {
             min: min,
             max: max,
             divisions: divisions,
-            onChanged: onChanged,
+            onChanged: enabled ? onChanged : null,
           ),
         ),
         SizedBox(
@@ -965,12 +997,14 @@ class _SwitchRow extends StatelessWidget {
     required this.subtitle,
     required this.value,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final String title;
   final String subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -991,7 +1025,7 @@ class _SwitchRow extends StatelessWidget {
               ],
             ),
           ),
-          Switch(value: value, onChanged: onChanged),
+          Switch(value: value, onChanged: enabled ? onChanged : null),
         ],
       ),
     );

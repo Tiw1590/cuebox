@@ -310,4 +310,26 @@ void main() {
     expect(cue.fadeOutMs, 800);
     expect(cue.loop, isTrue);
   });
+
+  test('修改全局参数后默认值更新且跟随标记保留', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await container.read(showProvider.future);
+    final notifier = container.read(showProvider.notifier);
+    await notifier.addCue(uri: 'a.mp3', name: 'A');
+    await notifier.updateShowDefaults(
+      volume: 0.35,
+      fadeInMs: 400,
+      fadeOutMs: 700,
+      loop: true,
+    );
+
+    final show = container.read(showProvider).value!.activeShow;
+    expect(show.defaultVolume, 0.35);
+    expect(show.defaultFadeInMs, 400);
+    expect(show.defaultFadeOutMs, 700);
+    expect(show.defaultLoop, isTrue);
+    expect(show.cues.single.followGlobal, isTrue);
+  });
 }
