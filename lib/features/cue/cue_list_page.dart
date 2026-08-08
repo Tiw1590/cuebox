@@ -421,61 +421,63 @@ class _CueToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 6, 8, 6),
-      child: Row(
-        children: [
-          _LoopChip(active: listLoop, onTap: onToggleLoop),
-          SizedBox(width: 6),
-          Spacer(),
-          IconButton(
-            tooltip: '在选中音频后添加“播放”控制',
-            visualDensity: VisualDensity.compact,
-            onPressed: () => onAddControl(ControlAction.play),
-            color: CueBoxColors.primary,
-            icon: const Icon(Icons.play_circle_outline, size: 21),
-          ),
-          IconButton(
-            tooltip: '在选中音频后添加“暂停”控制',
-            visualDensity: VisualDensity.compact,
-            onPressed: () => onAddControl(ControlAction.pause),
-            color: CueBoxColors.amber,
-            icon: const Icon(Icons.pause_circle_outline, size: 21),
-          ),
-          IconButton(
-            tooltip: '在选中音频后添加“停止”控制',
-            visualDensity: VisualDensity.compact,
-            onPressed: () => onAddControl(ControlAction.stop),
-            color: CueBoxColors.danger,
-            icon: const Icon(Icons.stop_circle_outlined, size: 21),
-          ),
-          IconButton(
-            tooltip: '全局参数',
-            visualDensity: VisualDensity.compact,
-            onPressed: onProjectSettings,
-            color: CueBoxColors.textSecondary,
-            icon: Icon(Icons.tune, size: 21),
-          ),
-          if (onPaste != null)
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _LoopChip(active: listLoop, onTap: onToggleLoop),
+            SizedBox(width: 6),
             IconButton(
-              tooltip: '粘贴 Cue',
+              tooltip: '在选中音频后添加“播放”控制',
               visualDensity: VisualDensity.compact,
-              onPressed: onPaste,
-              color: CueBoxColors.secondary,
-              icon: Icon(Icons.content_paste_go, size: 21),
+              onPressed: () => onAddControl(ControlAction.play),
+              color: CueBoxColors.primary,
+              icon: const Icon(Icons.play_circle_outline, size: 21),
             ),
-          Text(
-            '共 $cueCount 条',
-            style: TextStyle(fontSize: 12, color: CueBoxColors.textFaint),
-          ),
-          IconButton(
-            tooltip: '清空列表',
-            visualDensity: VisualDensity.compact,
-            onPressed: cueCount > 0 ? onClearAll : null,
-            color: cueCount > 0
-                ? CueBoxColors.textSecondary
-                : CueBoxColors.textFaint.withValues(alpha: 0.4),
-            icon: Icon(Icons.delete_sweep_outlined, size: 21),
-          ),
-        ],
+            IconButton(
+              tooltip: '在选中音频后添加“暂停”控制',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => onAddControl(ControlAction.pause),
+              color: CueBoxColors.amber,
+              icon: const Icon(Icons.pause_circle_outline, size: 21),
+            ),
+            IconButton(
+              tooltip: '在选中音频后添加“停止”控制',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => onAddControl(ControlAction.stop),
+              color: CueBoxColors.danger,
+              icon: const Icon(Icons.stop_circle_outlined, size: 21),
+            ),
+            IconButton(
+              tooltip: '全局参数',
+              visualDensity: VisualDensity.compact,
+              onPressed: onProjectSettings,
+              color: CueBoxColors.textSecondary,
+              icon: Icon(Icons.tune, size: 21),
+            ),
+            if (onPaste != null)
+              IconButton(
+                tooltip: '粘贴 Cue',
+                visualDensity: VisualDensity.compact,
+                onPressed: onPaste,
+                color: CueBoxColors.secondary,
+                icon: Icon(Icons.content_paste_go, size: 21),
+              ),
+            Text(
+              '共 $cueCount 条',
+              style: TextStyle(fontSize: 12, color: CueBoxColors.textFaint),
+            ),
+            IconButton(
+              tooltip: '清空列表',
+              visualDensity: VisualDensity.compact,
+              onPressed: cueCount > 0 ? onClearAll : null,
+              color: cueCount > 0
+                  ? CueBoxColors.textSecondary
+                  : CueBoxColors.textFaint.withValues(alpha: 0.4),
+              icon: Icon(Icons.delete_sweep_outlined, size: 21),
+            ),
+          ],
+        ),
       ),
     );
   }
