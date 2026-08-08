@@ -1082,9 +1082,9 @@ class _CueTileState extends State<_CueTile> {
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               12,
-              cue.demoted ? 8 : 12,
+              cue.demoted ? 7 : 12,
               6,
-              cue.demoted ? 8 : 12,
+              cue.demoted ? 7 : 12,
             ),
             child: Row(
               children: [
@@ -1103,7 +1103,7 @@ class _CueTileState extends State<_CueTile> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: cue.demoted ? 13 : 15,
+                          fontSize: cue.demoted ? 12.5 : 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1185,7 +1185,7 @@ class _CueTileState extends State<_CueTile> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                if (!hideTimes)
+                if (!hideTimes && !cue.demoted)
                   Flexible(
                     child: Align(
                       alignment: Alignment.centerRight,
@@ -1347,11 +1347,7 @@ class _IndexBadge extends StatelessWidget {
         color: selected ? null : CueBoxColors.surfacePressed,
       ),
       child: demoted
-          ? Icon(
-              Icons.subdirectory_arrow_right_rounded,
-              size: 15,
-              color: CueBoxColors.textFaint,
-            )
+          ? Icon(Icons.circle, size: 6, color: CueBoxColors.textFaint)
           : Text(
               number.toString().padLeft(2, '0'),
               style: TextStyle(
