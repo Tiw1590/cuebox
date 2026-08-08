@@ -1078,15 +1078,17 @@ class _TimeText extends StatelessWidget {
         ),
       ],
     );
-    if (onDoubleTap == null) return row;
-    return Tooltip(
-      message: '双击修改',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onDoubleTap: onDoubleTap,
-        child: row,
-      ),
-    );
+    final content = onDoubleTap == null
+        ? row
+        : Tooltip(
+            message: '双击修改',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onDoubleTap: onDoubleTap,
+              child: row,
+            ),
+          );
+    return FittedBox(fit: BoxFit.scaleDown, child: content);
   }
 }
 
