@@ -138,6 +138,7 @@ class CartSlot {
     this.endMs = 0,
     this.shortcutKeyId,
     this.shortcutLabel,
+    this.followGlobal = true,
     this.solo = true,
     this.loop = false,
     this.volume = 1.0,
@@ -161,6 +162,9 @@ class CartSlot {
 
   /// 快捷键显示名称（如 A / 5 / F1）。
   String? shortcutLabel;
+
+  /// 跟随全局（项目默认）参数；关闭后以本 Card 自己的参数为准。
+  bool followGlobal;
   bool solo;
   bool loop;
   double volume;
@@ -177,6 +181,7 @@ class CartSlot {
     int? endMs,
     int? shortcutKeyId,
     String? shortcutLabel,
+    bool? followGlobal,
     bool? solo,
     bool? loop,
     double? volume,
@@ -192,6 +197,7 @@ class CartSlot {
       endMs: endMs ?? this.endMs,
       shortcutKeyId: shortcutKeyId ?? this.shortcutKeyId,
       shortcutLabel: shortcutLabel ?? this.shortcutLabel,
+      followGlobal: followGlobal ?? this.followGlobal,
       solo: solo ?? this.solo,
       loop: loop ?? this.loop,
       volume: volume ?? this.volume,
@@ -209,6 +215,7 @@ class CartSlot {
     'endMs': endMs,
     'shortcutKeyId': shortcutKeyId,
     'shortcutLabel': shortcutLabel,
+    'followGlobal': followGlobal,
     'solo': solo,
     'loop': loop,
     'volume': volume,
@@ -226,6 +233,7 @@ class CartSlot {
       endMs: (json['endMs'] as num?)?.toInt() ?? 0,
       shortcutKeyId: (json['shortcutKeyId'] as num?)?.toInt(),
       shortcutLabel: json['shortcutLabel'] as String?,
+      followGlobal: json['followGlobal'] as bool? ?? true,
       solo: json['solo'] as bool? ?? true,
       loop: json['loop'] as bool? ?? false,
       volume: (json['volume'] as num?)?.toDouble() ?? 1.0,

@@ -115,6 +115,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
                   fadeOutMs: c.fadeOutMs,
                   shortcutKeyId: c.shortcutKeyId,
                   shortcutLabel: c.shortcutLabel,
+                  followGlobal: c.followGlobal,
                 ),
               )
               .toList(),
@@ -294,7 +295,16 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
       (show) => show.copyWith(
         cartSlots: [
           ...show.cartSlots,
-          CartSlot(id: _genId('cart'), name: name, uri: uri),
+          CartSlot(
+            id: _genId('cart'),
+            name: name,
+            uri: uri,
+            volume: show.defaultVolume,
+            fadeInMs: show.defaultFadeInMs,
+            fadeOutMs: show.defaultFadeOutMs,
+            loop: show.defaultLoop,
+            followGlobal: true,
+          ),
         ],
       ),
     );
@@ -306,7 +316,16 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
         cartSlots: [
           ...show.cartSlots,
           for (final item in items)
-            CartSlot(id: _genId('cart'), name: item.name, uri: item.uri),
+            CartSlot(
+              id: _genId('cart'),
+              name: item.name,
+              uri: item.uri,
+              volume: show.defaultVolume,
+              fadeInMs: show.defaultFadeInMs,
+              fadeOutMs: show.defaultFadeOutMs,
+              loop: show.defaultLoop,
+              followGlobal: true,
+            ),
         ],
       ),
     );
@@ -325,6 +344,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
     bool solo = true,
     int? shortcutKeyId,
     String? shortcutLabel,
+    bool followGlobal = true,
   }) {
     return _mutateShow(
       (show) => show.copyWith(
@@ -344,6 +364,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
             solo: solo,
             shortcutKeyId: shortcutKeyId,
             shortcutLabel: shortcutLabel,
+            followGlobal: followGlobal,
           ),
         ],
       ),

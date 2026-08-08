@@ -20,16 +20,25 @@ Future<void> triggerCartSlot(WidgetRef ref, CartSlot slot) async {
     await engine.stopSource(slot.id);
     return;
   }
+  final show = ref.read(showProvider).valueOrNull?.activeShow;
+  final volume = slot.followGlobal ? (show?.defaultVolume ?? 1.0) : slot.volume;
+  final loop = slot.followGlobal ? (show?.defaultLoop ?? false) : slot.loop;
+  final fadeInMs = slot.followGlobal
+      ? (show?.defaultFadeInMs ?? 20)
+      : slot.fadeInMs;
+  final fadeOutMs = slot.followGlobal
+      ? (show?.defaultFadeOutMs ?? 150)
+      : slot.fadeOutMs;
   await engine.trigger(
     uri: slot.uri,
     label: slot.name,
     sourceId: slot.id,
     startMs: slot.startMs,
     endMs: slot.endMs,
-    loop: slot.loop,
-    volume: slot.volume,
-    fadeIn: slot.fadeIn,
-    fadeOut: slot.fadeOut,
+    loop: loop,
+    volume: volume,
+    fadeIn: Duration(milliseconds: fadeInMs),
+    fadeOut: Duration(milliseconds: fadeOutMs),
     // 全局“多个播放”优先于卡片自身的 Solo：多播模式下一律叠放。
     stopOthers: ref.read(playbackModeProvider) == PlaybackMode.single,
   );
@@ -77,6 +86,12 @@ class _CartPageState extends ConsumerState<CartPage> {
       initialShortcutKeyId: slot.shortcutKeyId,
       initialShortcutLabel: slot.shortcutLabel,
       takenShortcutKeyIds: takenKeys,
+      showFollowGlobal: true,
+      initialFollowGlobal: slot.followGlobal,
+      globalVolume: show?.defaultVolume ?? 1.0,
+      globalFadeInMs: show?.defaultFadeInMs ?? 20,
+      globalFadeOutMs: show?.defaultFadeOutMs ?? 150,
+      globalLoop: show?.defaultLoop ?? false,
       onCopy: () {
         copyCardToClipboard(ref, slot);
         if (mounted) {
@@ -96,6 +111,7 @@ class _CartPageState extends ConsumerState<CartPage> {
                 endMs: r.endMs,
                 shortcutKeyId: r.shortcutKeyId,
                 shortcutLabel: r.shortcutLabel,
+                followGlobal: r.followGlobal,
                 volume: r.volume,
                 fadeInMs: r.fadeInMs,
                 fadeOutMs: r.fadeOutMs,

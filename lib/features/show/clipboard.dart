@@ -77,7 +77,7 @@ class ClipboardItem {
       endMs: slot.endMs,
       preWaitMs: 0,
       postWaitMs: 0,
-      followGlobal: true,
+      followGlobal: slot.followGlobal,
       solo: slot.solo,
       shortcutKeyId: slot.shortcutKeyId,
       shortcutLabel: slot.shortcutLabel,
@@ -141,6 +141,7 @@ Future<void> pasteClipboard(WidgetRef ref, BuildContext context) async {
           solo: item.solo,
           shortcutKeyId: item.shortcutKeyId,
           shortcutLabel: item.shortcutLabel,
+          followGlobal: item.followGlobal,
         );
     messenger.showSnackBar(SnackBar(content: Text('已粘贴 Card「${item.name}」')));
   } else {
