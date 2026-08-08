@@ -89,6 +89,8 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
                   endMs: c.endMs,
                   preWaitMs: c.preWaitMs,
                   postWaitMs: c.postWaitMs,
+                  autoNext: c.autoNext,
+                  playNextTogether: c.playNextTogether,
                   loop: c.loop,
                   volume: c.volume,
                   fadeInMs: c.fadeInMs,

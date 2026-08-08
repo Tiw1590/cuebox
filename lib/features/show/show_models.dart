@@ -12,6 +12,8 @@ class Cue {
     this.endMs = 0,
     this.preWaitMs = 0,
     this.postWaitMs = 0,
+    this.autoNext = false,
+    this.playNextTogether = false,
     this.loop = false,
     this.volume = 1.0,
     this.fadeInMs = 20,
@@ -34,6 +36,12 @@ class Cue {
 
   /// 结束后等待（毫秒）。
   int postWaitMs;
+
+  /// 播完自动接下一个。
+  bool autoNext;
+
+  /// 触发时同时播放下一个。
+  bool playNextTogether;
   bool loop;
   double volume;
   int fadeInMs;
@@ -49,6 +57,8 @@ class Cue {
     int? endMs,
     int? preWaitMs,
     int? postWaitMs,
+    bool? autoNext,
+    bool? playNextTogether,
     bool? loop,
     double? volume,
     int? fadeInMs,
@@ -63,6 +73,8 @@ class Cue {
       endMs: endMs ?? this.endMs,
       preWaitMs: preWaitMs ?? this.preWaitMs,
       postWaitMs: postWaitMs ?? this.postWaitMs,
+      autoNext: autoNext ?? this.autoNext,
+      playNextTogether: playNextTogether ?? this.playNextTogether,
       loop: loop ?? this.loop,
       volume: volume ?? this.volume,
       fadeInMs: fadeInMs ?? this.fadeInMs,
@@ -79,6 +91,8 @@ class Cue {
     'endMs': endMs,
     'preWaitMs': preWaitMs,
     'postWaitMs': postWaitMs,
+    'autoNext': autoNext,
+    'playNextTogether': playNextTogether,
     'loop': loop,
     'volume': volume,
     'fadeInMs': fadeInMs,
@@ -95,6 +109,8 @@ class Cue {
       endMs: (json['endMs'] as num?)?.toInt() ?? 0,
       preWaitMs: (json['preWaitMs'] as num?)?.toInt() ?? 0,
       postWaitMs: (json['postWaitMs'] as num?)?.toInt() ?? 0,
+      autoNext: json['autoNext'] as bool? ?? false,
+      playNextTogether: json['playNextTogether'] as bool? ?? false,
       loop: json['loop'] as bool? ?? false,
       volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
       fadeInMs: (json['fadeInMs'] as num?)?.toInt() ?? 20,

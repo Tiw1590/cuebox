@@ -280,12 +280,14 @@ class _CueListPageState extends ConsumerState<CueListPage> {
                 .read(cueControllerProvider.notifier)
                 .select(selected ? '' : cue.id),
             onEdit: () => _openInspectorFor(cue),
-            onMoveUp: index > 0
-                ? () => ref.read(showProvider.notifier).moveCue(cue.id, -1)
-                : null,
-            onMoveDown: index < cues.length - 1
-                ? () => ref.read(showProvider.notifier).moveCue(cue.id, 1)
-                : null,
+            onToggleAutoNext: () => ref
+                .read(showProvider.notifier)
+                .updateCue(cue.copyWith(autoNext: !cue.autoNext)),
+            onToggleTogether: () => ref
+                .read(showProvider.notifier)
+                .updateCue(
+                  cue.copyWith(playNextTogether: !cue.playNextTogether),
+                ),
             onDelete: () => ref.read(showProvider.notifier).removeCue(cue.id),
             onCopy: () {
               copyCueToClipboard(ref, cue);
@@ -617,8 +619,8 @@ class _CueTile extends StatefulWidget {
     required this.locked,
     required this.onTap,
     required this.onEdit,
-    required this.onMoveUp,
-    required this.onMoveDown,
+    required this.onToggleAutoNext,
+    required this.onToggleTogether,
     required this.onDelete,
     required this.onCopy,
     required this.onEditWait,
@@ -634,8 +636,8 @@ class _CueTile extends StatefulWidget {
   final bool locked;
   final VoidCallback onTap;
   final VoidCallback onEdit;
-  final VoidCallback? onMoveUp;
-  final VoidCallback? onMoveDown;
+  final VoidCallback onToggleAutoNext;
+  final VoidCallback onToggleTogether;
   final VoidCallback onDelete;
   final VoidCallback onCopy;
   final void Function(Cue cue, bool isPre) onEditWait;
@@ -659,8 +661,8 @@ class _CueTileState extends State<_CueTile> {
     final locked = widget.locked;
     final onTap = widget.onTap;
     final onEdit = widget.onEdit;
-    final onMoveUp = widget.onMoveUp;
-    final onMoveDown = widget.onMoveDown;
+    final onToggleAutoNext = widget.onToggleAutoNext;
+    final onToggleTogether = widget.onToggleTogether;
     final onDelete = widget.onDelete;
     final onCopy = widget.onCopy;
     final onEditWait = widget.onEditWait;
@@ -786,10 +788,10 @@ class _CueTileState extends State<_CueTile> {
                       switch (value) {
                         case 'edit':
                           onEdit();
-                        case 'up':
-                          onMoveUp?.call();
-                        case 'down':
-                          onMoveDown?.call();
+                        case 'auto_next':
+                          onToggleAutoNext();
+                        case 'together':
+                          onToggleTogether();
                         case 'copy':
                           onCopy();
                         case 'delete':
@@ -801,17 +803,26 @@ class _CueTileState extends State<_CueTile> {
                         value: 'edit',
                         child: _MenuRow(icon: Icons.tune, label: '编辑参数'),
                       ),
-                      PopupMenuItem(
-                        value: 'up',
-                        enabled: onMoveUp != null,
-                        child: _MenuRow(icon: Icons.arrow_upward, label: '上移'),
+                      CheckedPopupMenuItem(
+                        value: 'auto_next',
+                        checked: cue.autoNext,
+                        child: const Row(
+                          children: [
+                            Icon(Icons.skip_next_outlined, size: 19),
+                            SizedBox(width: 10),
+                            Text('播完接下一个'),
+                          ],
+                        ),
                       ),
-                      PopupMenuItem(
-                        value: 'down',
-                        enabled: onMoveDown != null,
-                        child: _MenuRow(
-                          icon: Icons.arrow_downward,
-                          label: '下移',
+                      CheckedPopupMenuItem(
+                        value: 'together',
+                        checked: cue.playNextTogether,
+                        child: const Row(
+                          children: [
+                            Icon(Icons.layers_outlined, size: 19),
+                            SizedBox(width: 10),
+                            Text('同时播下一个'),
+                          ],
                         ),
                       ),
                       PopupMenuItem(

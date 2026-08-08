@@ -66,13 +66,14 @@ class CueController extends Notifier<CueControlState> {
     final sub = engine.onCompleted.listen((playId) async {
       final cueId = _playToCue.remove(playId);
       if (cueId == null) return;
-      if (!state.listLoop) return;
       final cues =
           ref.read(showProvider).valueOrNull?.activeShow.cues ?? <Cue>[];
       if (cues.isEmpty) return;
       final idx = cues.indexWhere((c) => c.id == cueId);
       if (idx < 0) return;
       final cue = cues[idx];
+      // 只有全局循环或该 Cue 开启“播完接下一个”才继续。
+      if (!state.listLoop && !cue.autoNext) return;
       final next = cues[(idx + 1) % cues.length];
       // 结束后等待，再触发下一条。
       if (cue.postWaitMs > 0) {
@@ -133,7 +134,7 @@ class CueController extends Notifier<CueControlState> {
       final isLast = start == cues.length - 1;
       state = state.copyWith(
         selectedCueId: nextIdx < cues.length ? cues[nextIdx].id : null,
-        ended: isLast && !state.listLoop,
+        ended: isLast && !state.listLoop && !cues[start].autoNext,
       );
     } finally {
       _goBusy = false;
@@ -173,6 +174,28 @@ class CueController extends Notifier<CueControlState> {
       _playToCue[playId] = cue.id;
     }
     state = state.copyWith(lastTriggeredCueId: cue.id);
+
+    // 同时播放下一个（叠放，不等待、不独占）。
+    if (cue.playNextTogether) {
+      final cues =
+          ref.read(showProvider).valueOrNull?.activeShow.cues ?? <Cue>[];
+      final idx = cues.indexWhere((c) => c.id == cue.id);
+      if (idx >= 0 && idx + 1 < cues.length) {
+        final next = cues[idx + 1];
+        await engine.trigger(
+          uri: next.uri,
+          label: next.name,
+          sourceId: next.id,
+          startMs: next.startMs,
+          endMs: next.endMs,
+          loop: next.loop,
+          volume: next.volume,
+          fadeIn: next.fadeIn,
+          fadeOut: next.fadeOut,
+          stopOthers: false,
+        );
+      }
+    }
   }
 
   void toggleListLoop() {
