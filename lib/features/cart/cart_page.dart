@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/audio_slot_editor.dart';
 import '../../core/widgets/empty_state.dart';
@@ -160,10 +161,7 @@ class _CartPageState extends ConsumerState<CartPage> {
                 Spacer(),
                 Text(
                   '共 ${slots.length} 个 Pad',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: CueBoxColors.textFaint,
-                  ),
+                  style: TextStyle(fontSize: 12, color: CueBoxColors.textFaint),
                 ),
                 if (canPaste)
                   IconButton(
@@ -883,9 +881,5 @@ class _TransportButton extends StatelessWidget {
 
 String _fmtDur(Duration d) {
   final clamped = d.isNegative ? Duration.zero : d;
-  final minutes = clamped.inMinutes;
-  final seconds = clamped.inSeconds % 60;
-  final millis = clamped.inMilliseconds % 1000;
-  return '$minutes:${seconds.toString().padLeft(2, '0')}.'
-      '${millis.toString().padLeft(3, '0')}';
+  return fmtMmSsCc(clamped.inMilliseconds);
 }
