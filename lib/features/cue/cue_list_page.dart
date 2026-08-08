@@ -164,6 +164,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
               control,
               playing,
               locked,
+              _inspectorOpen,
             ),
             _ => SizedBox.shrink(),
           },
@@ -243,6 +244,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
     CueControlState control,
     Map<String, ActivePlay> playing,
     bool locked,
+    bool hideTimes,
   ) {
     final cues = show.cues;
     return ReorderableListView.builder(
@@ -273,6 +275,9 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             selected: selected,
             isPlaying: isPlaying,
             activePlay: activePlay,
+            waitingForThis: control.waitingCueId == cue.id,
+            waitingPhase: control.waitingPhase,
+            hideTimes: hideTimes,
             locked: locked,
             onTap: () => ref
                 .read(cueControllerProvider.notifier)
@@ -421,54 +426,136 @@ class _LoopChip extends StatelessWidget {
 
 /// Cue 行右侧的时间信息列：前等待 / 时长 / 后等待。
 /// Cue 行右侧的横向时间信息：前等待 / 时长 / 后等待。
-class _TimeInfoRow extends StatelessWidget {
-  const _TimeInfoRow({
-    required this.preMs,
-    required this.postMs,
-    required this.durationFuture,
-    required this.onEditPre,
-    required this.onEditPost,
+/// 等待时间槽：数字 + 等待阶段专属进度条。
+class _WaitSlot extends StatelessWidget {
+  const _WaitSlot({
+    required this.label,
+    required this.text,
+    required this.color,
+    required this.active,
+    required this.durationMs,
+    required this.onDoubleTap,
   });
 
-  final int preMs;
-  final int postMs;
-  final Future<int?> durationFuture;
-  final VoidCallback onEditPre;
-  final VoidCallback onEditPost;
+  final String label;
+  final String text;
+  final Color color;
+  final bool active;
+  final int durationMs;
+  final VoidCallback onDoubleTap;
 
   @override
   Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerRight,
-      child: Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _TimeText(label: label, text: text, onDoubleTap: onDoubleTap),
+        const SizedBox(height: 4),
+        if (active && durationMs > 0)
+          TweenAnimationBuilder<double>(
+            key: ValueKey('$label$active'),
+            tween: Tween(begin: 0, end: 1),
+            duration: Duration(milliseconds: durationMs),
+            builder: (_, value, _) => _MiniBar(value: value, color: color),
+          )
+        else
+          const SizedBox(height: 7),
+      ],
+    );
+  }
+}
+
+/// 时长槽：空闲显示总时长，播放中显示实时已播 + 进度条。
+class _DurationSlot extends StatelessWidget {
+  const _DurationSlot({required this.activePlay, required this.durationFuture});
+
+  final ActivePlay? activePlay;
+  final Future<int?> durationFuture;
+
+  @override
+  Widget build(BuildContext context) {
+    if (activePlay != null) {
+      return StreamBuilder<Duration>(
+        stream: activePlay!.positionStream,
+        initialData: Duration.zero,
+        builder: (_, posSnap) {
+          final pos = posSnap.data ?? Duration.zero;
+          return StreamBuilder<Duration?>(
+            stream: activePlay!.durationStream,
+            builder: (_, durSnap) {
+              final dur = durSnap.data;
+              final progress = (dur != null && dur.inMilliseconds > 0)
+                  ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
+                  : 0.0;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _TimeText(
+                    label: '时长',
+                    text: fmtMmSsCc(pos.inMilliseconds),
+                    color: CueBoxColors.primary,
+                  ),
+                  const SizedBox(height: 4),
+                  _MiniBar(value: progress, color: CueBoxColors.primary),
+                ],
+              );
+            },
+          );
+        },
+      );
+    }
+    return FutureBuilder<int?>(
+      future: durationFuture,
+      builder: (_, snap) => Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _TimeText(label: '前', text: fmtMmSsCc(preMs), onDoubleTap: onEditPre),
-          const SizedBox(width: 12),
-          FutureBuilder<int?>(
-            future: durationFuture,
-            builder: (_, snap) =>
-                _TimeText(label: '时长', text: fmtMmSsCc(snap.data ?? 0)),
-          ),
-          const SizedBox(width: 12),
-          _TimeText(
-            label: '后',
-            text: fmtMmSsCc(postMs),
-            onDoubleTap: onEditPost,
-          ),
+          _TimeText(label: '时长', text: fmtMmSsCc(snap.data ?? 0)),
+          const SizedBox(height: 4),
+          const SizedBox(height: 3),
         ],
       ),
     );
   }
 }
 
+class _MiniBar extends StatelessWidget {
+  const _MiniBar({required this.value, required this.color});
+
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 64,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(99),
+        child: LinearProgressIndicator(
+          value: value,
+          minHeight: 3,
+          backgroundColor: CueBoxColors.surfacePressed,
+          valueColor: AlwaysStoppedAnimation(color),
+        ),
+      ),
+    );
+  }
+}
+
 class _TimeText extends StatelessWidget {
-  const _TimeText({required this.label, required this.text, this.onDoubleTap});
+  const _TimeText({
+    required this.label,
+    required this.text,
+    this.onDoubleTap,
+    this.color,
+  });
 
   final String label;
   final String text;
   final VoidCallback? onDoubleTap;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -482,9 +569,10 @@ class _TimeText extends StatelessWidget {
         const SizedBox(width: 5),
         Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
+            color: color ?? CueBoxColors.textPrimary,
             fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),
@@ -502,70 +590,6 @@ class _TimeText extends StatelessWidget {
   }
 }
 
-/// 播放中的实时进度：已播时间 + 进度条 + 总时长。
-class _PlayingProgress extends StatelessWidget {
-  const _PlayingProgress({required this.activePlay});
-
-  final ActivePlay activePlay;
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<Duration>(
-      stream: activePlay.positionStream,
-      initialData: Duration.zero,
-      builder: (_, posSnap) {
-        final pos = posSnap.data ?? Duration.zero;
-        return StreamBuilder<Duration?>(
-          stream: activePlay.durationStream,
-          builder: (_, durSnap) {
-            final dur = durSnap.data;
-            final progress = (dur != null && dur.inMilliseconds > 0)
-                ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
-                : 0.0;
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  fmtMmSsCc(pos.inMilliseconds),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: CueBoxColors.primary,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 96,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(99),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 5,
-                      backgroundColor: CueBoxColors.surfacePressed,
-                      valueColor: AlwaysStoppedAnimation(CueBoxColors.primary),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  fmtMmSsCc(dur?.inMilliseconds ?? 0),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: CueBoxColors.textFaint,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
 class _CueTile extends StatefulWidget {
   const _CueTile({
     required this.cue,
@@ -573,6 +597,9 @@ class _CueTile extends StatefulWidget {
     required this.selected,
     required this.isPlaying,
     required this.activePlay,
+    required this.waitingForThis,
+    required this.waitingPhase,
+    required this.hideTimes,
     required this.locked,
     required this.onTap,
     required this.onEdit,
@@ -588,6 +615,9 @@ class _CueTile extends StatefulWidget {
   final bool selected;
   final bool isPlaying;
   final ActivePlay? activePlay;
+  final bool waitingForThis;
+  final WaitPhase? waitingPhase;
+  final bool hideTimes;
   final bool locked;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -611,6 +641,9 @@ class _CueTileState extends State<_CueTile> {
     final selected = widget.selected;
     final isPlaying = widget.isPlaying;
     final activePlay = widget.activePlay;
+    final waitingForThis = widget.waitingForThis;
+    final waitingPhase = widget.waitingPhase;
+    final hideTimes = widget.hideTimes;
     final locked = widget.locked;
     final onTap = widget.onTap;
     final onEdit = widget.onEdit;
@@ -691,23 +724,46 @@ class _CueTileState extends State<_CueTile> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Flexible(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: activePlay != null
-                          ? _PlayingProgress(activePlay: activePlay)
-                          : _TimeInfoRow(
-                              preMs: cue.preWaitMs,
-                              postMs: cue.postWaitMs,
-                              durationFuture: _durationFuture,
-                              onEditPre: () => onEditWait(cue, true),
-                              onEditPost: () => onEditWait(cue, false),
+                if (!hideTimes)
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _WaitSlot(
+                              label: '前',
+                              text: fmtMmSsCc(cue.preWaitMs),
+                              color: CueBoxColors.amber,
+                              active:
+                                  waitingForThis &&
+                                  waitingPhase == WaitPhase.pre,
+                              durationMs: cue.preWaitMs,
+                              onDoubleTap: () => onEditWait(cue, true),
                             ),
+                            const SizedBox(width: 14),
+                            _DurationSlot(
+                              activePlay: activePlay,
+                              durationFuture: _durationFuture,
+                            ),
+                            const SizedBox(width: 14),
+                            _WaitSlot(
+                              label: '后',
+                              text: fmtMmSsCc(cue.postWaitMs),
+                              color: CueBoxColors.secondary,
+                              active:
+                                  waitingForThis &&
+                                  waitingPhase == WaitPhase.post,
+                              durationMs: cue.postWaitMs,
+                              onDoubleTap: () => onEditWait(cue, false),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
                 const SizedBox(width: 6),
                 if (isPlaying) ...[PlayingIndicator(), SizedBox(width: 8)],
                 if (!locked)

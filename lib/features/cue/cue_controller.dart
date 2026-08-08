@@ -4,12 +4,16 @@ import '../playback/playback_engine.dart';
 import '../show/show_models.dart';
 import '../show/show_providers.dart';
 
+enum WaitPhase { pre, post }
+
 class CueControlState {
   CueControlState({
     this.selectedCueId,
     this.lastTriggeredCueId,
     this.listLoop = false,
     this.ended = false,
+    this.waitingCueId,
+    this.waitingPhase,
   });
 
   final String? selectedCueId;
@@ -19,11 +23,17 @@ class CueControlState {
   /// 已播完列表最后一首：再按 GO 时停止而不是回到第一首。
   final bool ended;
 
+  /// 正在等待中的 Cue（开始前 / 结束后），用于对应区域的进度显示。
+  final String? waitingCueId;
+  final WaitPhase? waitingPhase;
+
   CueControlState copyWith({
     Object? selectedCueId = _unset,
     String? lastTriggeredCueId,
     bool? listLoop,
     bool? ended,
+    String? waitingCueId,
+    WaitPhase? waitingPhase,
   }) {
     return CueControlState(
       selectedCueId: identical(selectedCueId, _unset)
@@ -32,6 +42,8 @@ class CueControlState {
       lastTriggeredCueId: lastTriggeredCueId ?? this.lastTriggeredCueId,
       listLoop: listLoop ?? this.listLoop,
       ended: ended ?? this.ended,
+      waitingCueId: waitingCueId ?? this.waitingCueId,
+      waitingPhase: waitingPhase ?? this.waitingPhase,
     );
   }
 
@@ -58,8 +70,13 @@ class CueController extends Notifier<CueControlState> {
       final next = cues[(idx + 1) % cues.length];
       // 结束后等待，再触发下一条。
       if (cue.postWaitMs > 0) {
+        state = state.copyWith(
+          waitingCueId: cue.id,
+          waitingPhase: WaitPhase.post,
+        );
         await Future<void>.delayed(Duration(milliseconds: cue.postWaitMs));
       }
+      state = state.copyWith(waitingCueId: null, waitingPhase: null);
       // 等待期间可能被停止或切换，重查一次循环状态。
       if (!state.listLoop) return;
       _trigger(next);
@@ -69,11 +86,21 @@ class CueController extends Notifier<CueControlState> {
   }
 
   void select(String id) {
-    state = state.copyWith(selectedCueId: id, ended: false);
+    state = state.copyWith(
+      selectedCueId: id,
+      ended: false,
+      waitingCueId: null,
+      waitingPhase: null,
+    );
   }
 
   void clearSelection() {
-    state = state.copyWith(selectedCueId: null, ended: false);
+    state = state.copyWith(
+      selectedCueId: null,
+      ended: false,
+      waitingCueId: null,
+      waitingPhase: null,
+    );
   }
 
   Future<void> go() async {
@@ -99,8 +126,10 @@ class CueController extends Notifier<CueControlState> {
   Future<void> _trigger(Cue cue) async {
     // 开始前等待。
     if (cue.preWaitMs > 0) {
+      state = state.copyWith(waitingCueId: cue.id, waitingPhase: WaitPhase.pre);
       await Future<void>.delayed(Duration(milliseconds: cue.preWaitMs));
     }
+    state = state.copyWith(waitingCueId: null, waitingPhase: null);
     final engine = ref.read(playbackEngineProvider.notifier);
     final playId = await engine.trigger(
       uri: cue.uri,
