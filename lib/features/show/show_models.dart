@@ -20,6 +20,7 @@ class Cue {
     this.followGlobal = true,
     this.controlAction,
     this.controlTargetCueId,
+    this.demoted = false,
     this.loop = false,
     this.volume = 1.0,
     this.fadeInMs = 20,
@@ -57,6 +58,9 @@ class Cue {
 
   /// 控制 Cue 的目标音频 id。
   String? controlTargetCueId;
+
+  /// 降级：不占用序号、紧凑显示，功能保留。
+  bool demoted;
   bool loop;
   double volume;
   int fadeInMs;
@@ -77,6 +81,7 @@ class Cue {
     bool? followGlobal,
     ControlAction? controlAction,
     String? controlTargetCueId,
+    bool? demoted,
     bool? loop,
     double? volume,
     int? fadeInMs,
@@ -96,6 +101,7 @@ class Cue {
       followGlobal: followGlobal ?? this.followGlobal,
       controlAction: controlAction ?? this.controlAction,
       controlTargetCueId: controlTargetCueId ?? this.controlTargetCueId,
+      demoted: demoted ?? this.demoted,
       loop: loop ?? this.loop,
       volume: volume ?? this.volume,
       fadeInMs: fadeInMs ?? this.fadeInMs,
@@ -117,6 +123,7 @@ class Cue {
     'followGlobal': followGlobal,
     'controlAction': controlAction?.name,
     'controlTargetCueId': controlTargetCueId,
+    'demoted': demoted,
     'loop': loop,
     'volume': volume,
     'fadeInMs': fadeInMs,
@@ -139,6 +146,7 @@ class Cue {
       controlAction: ControlAction.values
           .asNameMap()[json['controlAction'] as String?],
       controlTargetCueId: json['controlTargetCueId'] as String?,
+      demoted: json['demoted'] as bool? ?? false,
       loop: json['loop'] as bool? ?? false,
       volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
       fadeInMs: (json['fadeInMs'] as num?)?.toInt() ?? 20,

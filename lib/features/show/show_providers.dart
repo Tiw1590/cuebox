@@ -94,6 +94,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
                   followGlobal: c.followGlobal,
                   controlAction: c.controlAction,
                   controlTargetCueId: c.controlTargetCueId,
+                  demoted: c.demoted,
                   loop: c.loop,
                   volume: c.volume,
                   fadeInMs: c.fadeInMs,

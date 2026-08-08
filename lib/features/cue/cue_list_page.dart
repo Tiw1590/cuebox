@@ -131,6 +131,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             fadeOutMs: result.fadeOutMs,
             autoNext: result.autoNext,
             playNextTogether: result.playNextTogether,
+            demoted: result.demoted,
           ),
         );
   }
@@ -352,11 +353,15 @@ class _CueListPageState extends ConsumerState<CueListPage> {
                       .indexWhere((c) => c.id == cue.controlTargetCueId) +
                   1)
             : null;
+        // 降级的控制项不占序号，其余保持连续编号。
+        final demotedBefore = cues.take(index).where((c) => c.demoted).length;
+        final displayNumber = index + 1 - demotedBefore;
         final tile = Padding(
           padding: EdgeInsets.only(bottom: 10),
           child: _CueTile(
             cue: cue,
             index: index,
+            number: displayNumber,
             selected: selected,
             activePlay: activePlay,
             waitingForThis: control.waitingCueId == cue.id,
@@ -743,7 +748,19 @@ class _ControlInfoRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _TimeText(label: '前', text: fmtMmSsCc(preMs), onDoubleTap: onEditPre),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _TimeText(
+              label: '前',
+              text: fmtMmSsCc(preMs),
+              onDoubleTap: onEditPre,
+            ),
+            const SizedBox(height: 4),
+            const SizedBox(height: 7),
+          ],
+        ),
         const SizedBox(width: 12),
         Column(
           mainAxisSize: MainAxisSize.min,
@@ -768,7 +785,19 @@ class _ControlInfoRow extends StatelessWidget {
           ],
         ),
         const SizedBox(width: 12),
-        _TimeText(label: '后', text: fmtMmSsCc(postMs), onDoubleTap: onEditPost),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _TimeText(
+              label: '后',
+              text: fmtMmSsCc(postMs),
+              onDoubleTap: onEditPost,
+            ),
+            const SizedBox(height: 4),
+            const SizedBox(height: 7),
+          ],
+        ),
       ],
     );
   }
@@ -920,6 +949,7 @@ class _CueTile extends StatefulWidget {
   const _CueTile({
     required this.cue,
     required this.index,
+    required this.number,
     required this.selected,
     required this.activePlay,
     required this.waitingForThis,
@@ -939,6 +969,7 @@ class _CueTile extends StatefulWidget {
 
   final Cue cue;
   final int index;
+  final int number;
   final bool selected;
   final ActivePlay? activePlay;
   final bool waitingForThis;
@@ -967,7 +998,7 @@ class _CueTileState extends State<_CueTile> {
   @override
   Widget build(BuildContext context) {
     final cue = widget.cue;
-    final index = widget.index;
+    final number = widget.number;
     final selected = widget.selected;
     final activePlay = widget.activePlay;
     final waitingForThis = widget.waitingForThis;
@@ -1012,10 +1043,19 @@ class _CueTileState extends State<_CueTile> {
           borderRadius: BorderRadius.circular(18),
           onTap: onTap,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(12, 12, 6, 12),
+            padding: EdgeInsets.fromLTRB(
+              12,
+              cue.demoted ? 8 : 12,
+              6,
+              cue.demoted ? 8 : 12,
+            ),
             child: Row(
               children: [
-                _IndexBadge(index: index + 1, selected: selected),
+                _IndexBadge(
+                  number: number,
+                  demoted: cue.demoted,
+                  selected: selected,
+                ),
                 SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1026,7 +1066,7 @@ class _CueTileState extends State<_CueTile> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: cue.demoted ? 13 : 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1247,17 +1287,22 @@ class _CueTileState extends State<_CueTile> {
 }
 
 class _IndexBadge extends StatelessWidget {
-  const _IndexBadge({required this.index, required this.selected});
+  const _IndexBadge({
+    required this.number,
+    required this.demoted,
+    required this.selected,
+  });
 
-  final int index;
+  final int number;
+  final bool demoted;
   final bool selected;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: Duration(milliseconds: 200),
-      width: 36,
-      height: 36,
+      width: demoted ? 30 : 36,
+      height: demoted ? 30 : 36,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(11),
@@ -1265,9 +1310,9 @@ class _IndexBadge extends StatelessWidget {
         color: selected ? null : CueBoxColors.surfacePressed,
       ),
       child: Text(
-        index.toString().padLeft(2, '0'),
+        demoted ? '—' : number.toString().padLeft(2, '0'),
         style: TextStyle(
-          fontSize: 13,
+          fontSize: demoted ? 11 : 13,
           fontWeight: FontWeight.w800,
           color: selected ? Color(0xFF002A36) : CueBoxColors.textSecondary,
         ),
@@ -1576,6 +1621,7 @@ class _ControlCueResult {
     required this.fadeOutMs,
     required this.autoNext,
     required this.playNextTogether,
+    required this.demoted,
   });
 
   final String name;
@@ -1587,6 +1633,7 @@ class _ControlCueResult {
   final int fadeOutMs;
   final bool autoNext;
   final bool playNextTogether;
+  final bool demoted;
 }
 
 /// 控制 Cue 编辑面板：动作、目标、等待、淡入淡出、接/同。
@@ -1610,6 +1657,7 @@ class _ControlCueEditorState extends State<_ControlCueEditor> {
   late int _fadeOutMs;
   late bool _autoNext;
   late bool _together;
+  late bool _demoted;
 
   @override
   void initState() {
@@ -1625,6 +1673,7 @@ class _ControlCueEditorState extends State<_ControlCueEditor> {
     _fadeOutMs = widget.cue.fadeOutMs;
     _autoNext = widget.cue.autoNext;
     _together = widget.cue.playNextTogether;
+    _demoted = widget.cue.demoted;
   }
 
   @override
@@ -1647,6 +1696,7 @@ class _ControlCueEditorState extends State<_ControlCueEditor> {
         fadeOutMs: _fadeOutMs,
         autoNext: _autoNext,
         playNextTogether: _together,
+        demoted: _demoted,
       ),
     );
   }
@@ -1758,6 +1808,12 @@ class _ControlCueEditorState extends State<_ControlCueEditor> {
                 _together = v;
                 if (v) _autoNext = false;
               }),
+            ),
+            _ControlSwitchRow(
+              title: '降级',
+              subtitle: '不占序号、紧凑显示，功能保留',
+              value: _demoted,
+              onChanged: (v) => setState(() => _demoted = v),
             ),
             const SizedBox(height: 18),
             Row(
