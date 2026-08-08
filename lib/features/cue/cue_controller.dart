@@ -53,6 +53,7 @@ class CueControlState {
 /// Cue 列表模式控制器：选中、GO 触发、列表循环推进。
 class CueController extends Notifier<CueControlState> {
   final Map<String, String> _playToCue = {};
+  int _waitToken = 0;
 
   @override
   CueControlState build() {
@@ -74,7 +75,10 @@ class CueController extends Notifier<CueControlState> {
           waitingCueId: cue.id,
           waitingPhase: WaitPhase.post,
         );
-        await Future<void>.delayed(Duration(milliseconds: cue.postWaitMs));
+        if (!await _wait(cue.postWaitMs)) {
+          state = state.copyWith(waitingCueId: null, waitingPhase: null);
+          return;
+        }
       }
       state = state.copyWith(waitingCueId: null, waitingPhase: null);
       // 等待期间可能被停止或切换，重查一次循环状态。
@@ -108,7 +112,7 @@ class CueController extends Notifier<CueControlState> {
     if (cues.isEmpty) return;
     // 已到列表结尾：GO 变成停止，避免直接跳回第一首。
     if (state.ended) {
-      await ref.read(playbackEngineProvider.notifier).stopAll();
+      await stopAll();
       state = state.copyWith(ended: false);
       return;
     }
@@ -127,7 +131,10 @@ class CueController extends Notifier<CueControlState> {
     // 开始前等待。
     if (cue.preWaitMs > 0) {
       state = state.copyWith(waitingCueId: cue.id, waitingPhase: WaitPhase.pre);
-      await Future<void>.delayed(Duration(milliseconds: cue.preWaitMs));
+      if (!await _wait(cue.preWaitMs)) {
+        state = state.copyWith(waitingCueId: null, waitingPhase: null);
+        return;
+      }
     }
     state = state.copyWith(waitingCueId: null, waitingPhase: null);
     final engine = ref.read(playbackEngineProvider.notifier);
@@ -154,7 +161,16 @@ class CueController extends Notifier<CueControlState> {
   }
 
   Future<void> stopAll() async {
+    _waitToken++;
+    state = state.copyWith(waitingCueId: null, waitingPhase: null);
     await ref.read(playbackEngineProvider.notifier).stopAll();
+  }
+
+  /// 等待指定毫秒；期间被 stopAll 取消则返回 false。
+  Future<bool> _wait(int ms) async {
+    final token = _waitToken;
+    await Future<void>.delayed(Duration(milliseconds: ms));
+    return token == _waitToken;
   }
 }
 

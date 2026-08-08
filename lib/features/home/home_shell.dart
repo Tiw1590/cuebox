@@ -13,7 +13,6 @@ import '../cue/cue_controller.dart';
 import '../cue/cue_list_page.dart';
 import '../media/media_library_page.dart';
 import '../media/media_providers.dart';
-import '../playback/playback_engine.dart';
 import '../settings/settings_page.dart';
 import '../show/clipboard.dart';
 import '../show/show_models.dart';
@@ -206,7 +205,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           StopIntent: CallbackAction<StopIntent>(
             onInvoke: (_) {
               if (!_isTyping) {
-                ref.read(playbackEngineProvider.notifier).stopAll();
+                ref.read(cueControllerProvider.notifier).stopAll();
               }
               return null;
             },

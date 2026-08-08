@@ -6,7 +6,6 @@ import '../../core/platform/waveform_cache.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/audio_slot_editor.dart';
 import '../../core/widgets/empty_state.dart';
-import '../../core/widgets/playing_indicator.dart';
 import '../media/media_library_page.dart';
 import '../playback/playback_engine.dart';
 import '../show/show_models.dart';
@@ -123,7 +122,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
           selectedCueId: control.selectedCueId,
           onGo: () => ref.read(cueControllerProvider.notifier).go(),
           canStop: playing.isNotEmpty,
-          onStopAll: () => ref.read(playbackEngineProvider.notifier).stopAll(),
+          onStopAll: () => ref.read(cueControllerProvider.notifier).stopAll(),
           onEditSelected: () {
             if (selected != null) _openInspectorFor(selected);
           },
@@ -266,14 +265,12 @@ class _CueListPageState extends ConsumerState<CueListPage> {
         final activePlay = playing.values
             .where((p) => p.sourceId == cue.id && !p.isStopping)
             .firstOrNull;
-        final isPlaying = activePlay != null;
         final tile = Padding(
           padding: EdgeInsets.only(bottom: 10),
           child: _CueTile(
             cue: cue,
             index: index,
             selected: selected,
-            isPlaying: isPlaying,
             activePlay: activePlay,
             waitingForThis: control.waitingCueId == cue.id,
             waitingPhase: control.waitingPhase,
@@ -595,7 +592,6 @@ class _CueTile extends StatefulWidget {
     required this.cue,
     required this.index,
     required this.selected,
-    required this.isPlaying,
     required this.activePlay,
     required this.waitingForThis,
     required this.waitingPhase,
@@ -613,7 +609,6 @@ class _CueTile extends StatefulWidget {
   final Cue cue;
   final int index;
   final bool selected;
-  final bool isPlaying;
   final ActivePlay? activePlay;
   final bool waitingForThis;
   final WaitPhase? waitingPhase;
@@ -639,7 +634,6 @@ class _CueTileState extends State<_CueTile> {
     final cue = widget.cue;
     final index = widget.index;
     final selected = widget.selected;
-    final isPlaying = widget.isPlaying;
     final activePlay = widget.activePlay;
     final waitingForThis = widget.waitingForThis;
     final waitingPhase = widget.waitingPhase;
@@ -765,7 +759,6 @@ class _CueTileState extends State<_CueTile> {
                     ),
                   ),
                 const SizedBox(width: 6),
-                if (isPlaying) ...[PlayingIndicator(), SizedBox(width: 8)],
                 if (!locked)
                   PopupMenuButton<String>(
                     tooltip: 'Cue 操作',
