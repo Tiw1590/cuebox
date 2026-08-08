@@ -267,6 +267,27 @@ void main() {
     expect(cartShow.cues, isEmpty);
   });
 
+  test('拖拽移动 Cue 只移动自身，不带动其他子级', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await container.read(showProvider.future);
+    final notifier = container.read(showProvider.notifier);
+    await notifier.addCueWithParams(uri: 'p1.mp3', name: '主级1');
+    await notifier.addCueWithParams(uri: 'c1.mp3', name: '子级1');
+    await notifier.addCueWithParams(uri: 'c2.mp3', name: '子级2');
+    await notifier.addCueWithParams(uri: 'p2.mp3', name: '主级2');
+
+    final cues = [...container.read(showProvider).value!.activeShow.cues];
+    await notifier.updateCue(cues[1].copyWith(demoted: true));
+    await notifier.updateCue(cues[2].copyWith(demoted: true));
+
+    // 把“子级1”拖到“主级2”之后，只有它自己移动，子级2 不动。
+    await notifier.moveCue(cues[1].id, 3);
+    final moved = container.read(showProvider).value!.activeShow.cues;
+    expect(moved.map((c) => c.name).toList(), ['主级1', '子级2', '主级2', '子级1']);
+  });
+
   test('旧数据中 Cue 与 Pad 混在一场时自动拆分为独立工程', () async {
     SharedPreferences.setMockInitialValues({
       'show.data': jsonEncode({

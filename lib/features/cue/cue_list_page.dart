@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -340,11 +341,10 @@ class _CueListPageState extends ConsumerState<CueListPage> {
       onReorderItem: locked
           ? (_, _) {}
           : (oldIndex, newIndex) {
-              final cue = cues[oldIndex];
-              final delta = newIndex - oldIndex;
-              if (delta != 0) {
-                ref.read(showProvider.notifier).moveCue(cue.id, delta);
-              }
+              if (oldIndex == newIndex) return;
+              ref
+                  .read(showProvider.notifier)
+                  .moveCue(cues[oldIndex].id, newIndex);
             },
       itemBuilder: (context, index) {
         final cue = cues[index];
@@ -414,6 +414,17 @@ class _CueListPageState extends ConsumerState<CueListPage> {
         }
         if (locked) {
           return KeyedSubtree(key: ValueKey(cue.id), child: tile);
+        }
+        if (!kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.macOS ||
+                defaultTargetPlatform == TargetPlatform.windows ||
+                defaultTargetPlatform == TargetPlatform.linux)) {
+          // 桌面端直接按住拖拽即可排序，无需长按。
+          return ReorderableDragStartListener(
+            key: ValueKey(cue.id),
+            index: index,
+            child: tile,
+          );
         }
         return ReorderableDelayedDragStartListener(
           key: ValueKey(cue.id),

@@ -439,15 +439,15 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
     );
   }
 
-  Future<void> moveCue(String id, int delta) {
+  /// 把指定 Cue 移动到 [targetIndex]（目标索引为移除自身后的插入位置）。
+  Future<void> moveCue(String id, int targetIndex) {
     return _mutateShow((show) {
       final cues = [...show.cues];
       final idx = cues.indexWhere((c) => c.id == id);
-      final target = idx + delta;
-      if (idx < 0 || target < 0 || target >= cues.length) return show;
-      final tmp = cues[idx];
-      cues[idx] = cues[target];
-      cues[target] = tmp;
+      if (idx < 0) return show;
+      final cue = cues.removeAt(idx);
+      final target = targetIndex.clamp(0, cues.length).toInt();
+      cues.insert(target, cue);
       return show.copyWith(cues: cues);
     });
   }
