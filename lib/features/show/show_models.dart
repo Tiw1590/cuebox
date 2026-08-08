@@ -284,6 +284,7 @@ class Show {
     this.defaultFadeInMs = 20,
     this.defaultFadeOutMs = 150,
     this.defaultLoop = false,
+    this.padColumns = 5,
   }) : id = (id == null || id.isEmpty)
            ? 'show_${DateTime.now().microsecondsSinceEpoch}'
            : id,
@@ -305,6 +306,9 @@ class Show {
   final int defaultFadeOutMs;
   final bool defaultLoop;
 
+  /// Pad 视图每行显示几个，默认 5。
+  final int padColumns;
+
   Show copyWith({
     String? name,
     ShowKind? kind,
@@ -315,6 +319,7 @@ class Show {
     int? defaultFadeInMs,
     int? defaultFadeOutMs,
     bool? defaultLoop,
+    int? padColumns,
   }) {
     return Show(
       id: id,
@@ -327,6 +332,7 @@ class Show {
       defaultFadeInMs: defaultFadeInMs ?? this.defaultFadeInMs,
       defaultFadeOutMs: defaultFadeOutMs ?? this.defaultFadeOutMs,
       defaultLoop: defaultLoop ?? this.defaultLoop,
+      padColumns: padColumns ?? this.padColumns,
     );
   }
 
@@ -339,6 +345,7 @@ class Show {
     'defaultFadeInMs': defaultFadeInMs,
     'defaultFadeOutMs': defaultFadeOutMs,
     'defaultLoop': defaultLoop,
+    'padColumns': padColumns,
     'cues': cues.map((c) => c.toJson()).toList(),
     'cartSlots': cartSlots.map((c) => c.toJson()).toList(),
   };
@@ -359,6 +366,7 @@ class Show {
       defaultFadeInMs: (json['defaultFadeInMs'] as num?)?.toInt() ?? 20,
       defaultFadeOutMs: (json['defaultFadeOutMs'] as num?)?.toInt() ?? 150,
       defaultLoop: json['defaultLoop'] as bool? ?? false,
+      padColumns: (json['padColumns'] as num?)?.toInt() ?? 5,
       cues: (json['cues'] as List<dynamic>? ?? [])
           .map((e) => Cue.fromJson(e as Map<String, dynamic>))
           .toList(),

@@ -707,16 +707,36 @@ class _WaitSlot extends StatelessWidget {
       children: [
         _TimeText(label: label, text: text, onDoubleTap: onDoubleTap),
         const SizedBox(height: 4),
-        if (active && durationMs > 0)
-          TweenAnimationBuilder<double>(
-            key: ValueKey('$label$active'),
-            tween: Tween(begin: 0, end: 1),
-            duration: Duration(milliseconds: durationMs),
-            builder: (_, value, _) => _MiniBar(value: value, color: color),
-          )
-        else
-          const SizedBox(height: 7),
+        _BarArea(
+          child: active && durationMs > 0
+              ? TweenAnimationBuilder<double>(
+                  key: ValueKey('$label$active'),
+                  tween: Tween(begin: 0, end: 1),
+                  duration: Duration(milliseconds: durationMs),
+                  builder: (_, value, _) =>
+                      _MiniBar(value: value, color: color),
+                )
+              : null,
+        ),
       ],
+    );
+  }
+}
+
+/// 时间槽底部的固定高度区域：文字下方始终保留 7 高度，
+/// 有进度条时贴顶显示，保证各列文字对齐。
+class _BarArea extends StatelessWidget {
+  const _BarArea({this.child});
+
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 7,
+      child: child == null
+          ? null
+          : Align(alignment: Alignment.topRight, child: child),
     );
   }
 }
@@ -843,16 +863,17 @@ class _ControlInfoRow extends StatelessWidget {
               onDoubleTap: onEditFade,
             ),
             const SizedBox(height: 4),
-            if (fadeActive && fadeDurationMs > 0)
-              TweenAnimationBuilder<double>(
-                key: ValueKey('fade$fadeActive'),
-                tween: Tween(begin: 0, end: 1),
-                duration: Duration(milliseconds: fadeDurationMs),
-                builder: (_, value, _) =>
-                    _MiniBar(value: value, color: fadeColor),
-              )
-            else
-              const SizedBox(height: 7),
+            _BarArea(
+              child: fadeActive && fadeDurationMs > 0
+                  ? TweenAnimationBuilder<double>(
+                      key: ValueKey('fade$fadeActive'),
+                      tween: Tween(begin: 0, end: 1),
+                      duration: Duration(milliseconds: fadeDurationMs),
+                      builder: (_, value, _) =>
+                          _MiniBar(value: value, color: fadeColor),
+                    )
+                  : null,
+            ),
           ],
         ),
         const SizedBox(width: 12),
@@ -1116,7 +1137,12 @@ class _DurationSlot extends StatelessWidget {
                     color: CueBoxColors.primary,
                   ),
                   const SizedBox(height: 4),
-                  _MiniBar(value: progress, color: CueBoxColors.primary),
+                  _BarArea(
+                    child: _MiniBar(
+                      value: progress,
+                      color: CueBoxColors.primary,
+                    ),
+                  ),
                 ],
               );
             },
@@ -1135,7 +1161,7 @@ class _DurationSlot extends StatelessWidget {
           children: [
             _TimeText(label: '时长', text: fmtMmSsCc(trimmed)),
             const SizedBox(height: 4),
-            const SizedBox(height: 3),
+            const _BarArea(),
           ],
         );
       },

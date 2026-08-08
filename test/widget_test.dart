@@ -288,6 +288,25 @@ void main() {
     expect(moved.map((c) => c.name).toList(), ['主级1', '子级2', '主级2', '子级1']);
   });
 
+  test('Pad 可移动到任意位置且每行数量可保存', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await container.read(showProvider.future);
+    final notifier = container.read(showProvider.notifier);
+    await notifier.addCartSlot(uri: 'a.mp3', name: 'A');
+    await notifier.addCartSlot(uri: 'b.mp3', name: 'B');
+    await notifier.addCartSlot(uri: 'c.mp3', name: 'C');
+    final show = container.read(showProvider).value!.activeShow;
+
+    await notifier.moveCartSlot(show.cartSlots[0].id, 2);
+    final moved = container.read(showProvider).value!.activeShow.cartSlots;
+    expect(moved.map((s) => s.name).toList(), ['B', 'C', 'A']);
+
+    await notifier.setPadColumns(7);
+    expect(container.read(showProvider).value!.activeShow.padColumns, 7);
+  });
+
   test('旧数据中 Cue 与 Pad 混在一场时自动拆分为独立工程', () async {
     SharedPreferences.setMockInitialValues({
       'show.data': jsonEncode({

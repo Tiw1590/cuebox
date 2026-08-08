@@ -78,6 +78,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
           defaultFadeInMs: s.defaultFadeInMs,
           defaultFadeOutMs: s.defaultFadeOutMs,
           defaultLoop: s.defaultLoop,
+          padColumns: s.padColumns,
           cues: s.cues
               .map(
                 (c) => Cue(
@@ -187,6 +188,12 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
         defaultFadeOutMs: fadeOutMs,
         defaultLoop: loop,
       ),
+    );
+  }
+
+  Future<void> setPadColumns(int columns) {
+    return _mutateShow(
+      (s) => s.copyWith(padColumns: columns.clamp(1, 12).toInt()),
     );
   }
 
@@ -449,6 +456,19 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
       final target = targetIndex.clamp(0, cues.length).toInt();
       cues.insert(target, cue);
       return show.copyWith(cues: cues);
+    });
+  }
+
+  /// 把指定 Pad 移动到 [targetIndex]（目标索引为移除自身后的插入位置）。
+  Future<void> moveCartSlot(String id, int targetIndex) {
+    return _mutateShow((show) {
+      final slots = [...show.cartSlots];
+      final idx = slots.indexWhere((s) => s.id == id);
+      if (idx < 0) return show;
+      final slot = slots.removeAt(idx);
+      final target = targetIndex.clamp(0, slots.length).toInt();
+      slots.insert(target, slot);
+      return show.copyWith(cartSlots: slots);
     });
   }
 

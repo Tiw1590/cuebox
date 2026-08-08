@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -163,6 +164,7 @@ class _CartPageState extends ConsumerState<CartPage> {
     final show = showAsync.valueOrNull;
     final slots = show?.cartSlots ?? <CartSlot>[];
     final locked = show?.locked ?? false;
+    final columns = show?.padColumns ?? 5;
     final clipboard = ref.watch(clipboardProvider);
     final canPaste = clipboard?.kind == ClipboardKind.card;
 
@@ -174,6 +176,42 @@ class _CartPageState extends ConsumerState<CartPage> {
             padding: EdgeInsets.fromLTRB(16, 6, 8, 6),
             child: Row(
               children: [
+                PopupMenuButton<int>(
+                  tooltip: '每行几个',
+                  initialValue: columns,
+                  onSelected: (v) =>
+                      ref.read(showProvider.notifier).setPadColumns(v),
+                  itemBuilder: (context) => [
+                    for (final n in [3, 4, 5, 6, 7, 8])
+                      PopupMenuItem(value: n, child: Text('每行 $n 个')),
+                  ],
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.grid_view_rounded,
+                          size: 18,
+                          color: CueBoxColors.textSecondary,
+                        ),
+                        SizedBox(width: 5),
+                        Text(
+                          '每行 $columns 个',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: CueBoxColors.textSecondary,
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_drop_down,
+                          size: 18,
+                          color: CueBoxColors.textFaint,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 Spacer(),
                 Text(
                   '共 ${slots.length} 个 Pad',
@@ -223,7 +261,11 @@ class _CartPageState extends ConsumerState<CartPage> {
               slots: value.cartSlots,
               playing: playing,
               locked: locked,
+              columns: columns,
               onTrigger: _trigger,
+              onMove: (slot, targetIndex) => ref
+                  .read(showProvider.notifier)
+                  .moveCartSlot(slot.id, targetIndex),
               onEdit: _editSlot,
               onDelete: (slot) =>
                   ref.read(showProvider.notifier).removeCartSlot(slot.id),
@@ -248,7 +290,9 @@ class _SlotGrid extends StatelessWidget {
     required this.slots,
     required this.playing,
     required this.locked,
+    required this.columns,
     required this.onTrigger,
+    required this.onMove,
     required this.onEdit,
     required this.onDelete,
     required this.onCopy,
@@ -258,7 +302,9 @@ class _SlotGrid extends StatelessWidget {
   final List<CartSlot> slots;
   final Map<String, ActivePlay> playing;
   final bool locked;
+  final int columns;
   final Future<void> Function(CartSlot) onTrigger;
+  final void Function(CartSlot slot, int targetIndex) onMove;
   final Future<void> Function(CartSlot) onEdit;
   final Future<void> Function(CartSlot) onDelete;
   final void Function(CartSlot) onCopy;
@@ -266,29 +312,87 @@ class _SlotGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: EdgeInsets.fromLTRB(16, 4, 16, 20),
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 190,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 1.05,
-      ),
-      itemCount: slots.length,
-      itemBuilder: (context, index) {
-        final slot = slots[index];
-        final isPlaying = playing.values.any(
-          (p) => p.sourceId == slot.id && !p.isStopping,
-        );
-        return _SlotCard(
-          slot: slot,
-          isPlaying: isPlaying,
-          locked: locked,
-          onTrigger: () => onTrigger(slot),
-          onEdit: () => onEdit(slot),
-          onDelete: () => onDelete(slot),
-          onCopy: () => onCopy(slot),
-          onPaste: onPaste,
+    final desktop =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.linux);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const hPadding = 16.0 * 2;
+        const spacing = 12.0;
+        final tileWidth =
+            (constraints.maxWidth - hPadding - spacing * (columns - 1)) /
+            columns;
+        final tileHeight = tileWidth / 1.05;
+        return GridView.builder(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 20),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: spacing,
+            crossAxisSpacing: spacing,
+            childAspectRatio: 1.05,
+          ),
+          itemCount: slots.length,
+          itemBuilder: (context, index) {
+            final slot = slots[index];
+            final isPlaying = playing.values.any(
+              (p) => p.sourceId == slot.id && !p.isStopping,
+            );
+            final card = _SlotCard(
+              slot: slot,
+              isPlaying: isPlaying,
+              locked: locked,
+              onTrigger: () => onTrigger(slot),
+              onEdit: () => onEdit(slot),
+              onDelete: () => onDelete(slot),
+              onCopy: () => onCopy(slot),
+              onPaste: onPaste,
+            );
+            if (locked) return card;
+            final feedback = Material(
+              color: Colors.transparent,
+              child: SizedBox(
+                width: tileWidth,
+                height: tileHeight,
+                child: Opacity(opacity: 0.9, child: card),
+              ),
+            );
+            final draggable = desktop
+                ? Draggable<CartSlot>(
+                    data: slot,
+                    feedback: feedback,
+                    childWhenDragging: Opacity(opacity: 0.3, child: card),
+                    child: card,
+                  )
+                : LongPressDraggable<CartSlot>(
+                    data: slot,
+                    feedback: feedback,
+                    childWhenDragging: Opacity(opacity: 0.3, child: card),
+                    child: card,
+                  );
+            return DragTarget<CartSlot>(
+              onWillAcceptWithDetails: (details) => details.data.id != slot.id,
+              onAcceptWithDetails: (details) => onMove(details.data, index),
+              builder: (context, candidates, rejected) {
+                final hovering =
+                    candidates.isNotEmpty && candidates.first?.id != slot.id;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  decoration: hovering
+                      ? BoxDecoration(
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: CueBoxColors.primary,
+                            width: 2,
+                          ),
+                        )
+                      : null,
+                  child: draggable,
+                );
+              },
+            );
+          },
         );
       },
     );
@@ -343,7 +447,6 @@ class _SlotCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: onTrigger,
-          onLongPress: locked ? null : onEdit,
           child: Stack(
             children: [
               Padding(
