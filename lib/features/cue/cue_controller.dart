@@ -215,7 +215,8 @@ class CueController extends Notifier<CueControlState> {
         volume: volume,
         fadeIn: Duration(milliseconds: fadeInMs),
         fadeOut: Duration(milliseconds: fadeOutMs),
-        stopOthers: true,
+        // 默认叠放：走下一个时不停止上一个，只有停止控制才停。
+        stopOthers: false,
       );
       if (playId != null) {
         _playToCue[playId] = cue.id;
