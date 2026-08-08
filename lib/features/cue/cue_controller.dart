@@ -54,6 +54,7 @@ class CueControlState {
 class CueController extends Notifier<CueControlState> {
   final Map<String, String> _playToCue = {};
   int _waitToken = 0;
+  bool _goBusy = false;
 
   @override
   CueControlState build() {
@@ -108,26 +109,35 @@ class CueController extends Notifier<CueControlState> {
   }
 
   Future<void> go() async {
-    final cues = ref.read(showProvider).valueOrNull?.activeShow.cues ?? <Cue>[];
-    if (cues.isEmpty) return;
-    // 已到列表结尾：GO 变成停止，避免直接跳回第一首。
-    if (state.ended) {
-      await stopAll();
-      state = state.copyWith(ended: false);
-      return;
+    // 防抖：按钮焦点与空格快捷键可能同时触发，或按键连发。
+    if (_goBusy) return;
+    _goBusy = true;
+    try {
+      final cues =
+          ref.read(showProvider).valueOrNull?.activeShow.cues ?? <Cue>[];
+      if (cues.isEmpty) return;
+      // 已到列表结尾：GO 变成停止，避免直接跳回第一首。
+      if (state.ended) {
+        await stopAll();
+        state = state.copyWith(ended: false);
+        return;
+      }
+      final selIdx = cues.indexWhere((c) => c.id == state.selectedCueId);
+      final start = selIdx >= 0 ? selIdx : 0;
+      await _trigger(cues[start]);
+      final nextIdx = start + 1;
+      final isLast = start == cues.length - 1;
+      state = state.copyWith(
+        selectedCueId: nextIdx < cues.length ? cues[nextIdx].id : null,
+        ended: isLast && !state.listLoop,
+      );
+    } finally {
+      _goBusy = false;
     }
-    final selIdx = cues.indexWhere((c) => c.id == state.selectedCueId);
-    final start = selIdx >= 0 ? selIdx : 0;
-    await _trigger(cues[start]);
-    final nextIdx = start + 1;
-    final isLast = start == cues.length - 1;
-    state = state.copyWith(
-      selectedCueId: nextIdx < cues.length ? cues[nextIdx].id : null,
-      ended: isLast && !state.listLoop,
-    );
   }
 
   Future<void> _trigger(Cue cue) async {
+    final token = _waitToken;
     // 开始前等待。
     if (cue.preWaitMs > 0) {
       state = state.copyWith(waitingCueId: cue.id, waitingPhase: WaitPhase.pre);
@@ -135,6 +145,11 @@ class CueController extends Notifier<CueControlState> {
         state = state.copyWith(waitingCueId: null, waitingPhase: null);
         return;
       }
+    }
+    // 等待刚结束时若已被 ESC 取消，不再触发播放。
+    if (token != _waitToken) {
+      state = state.copyWith(waitingCueId: null, waitingPhase: null);
+      return;
     }
     state = state.copyWith(waitingCueId: null, waitingPhase: null);
     final engine = ref.read(playbackEngineProvider.notifier);
