@@ -172,6 +172,7 @@ class CartSlot {
     this.volume = 1.0,
     this.fadeInMs = 20,
     this.fadeOutMs = 150,
+    this.gridIndex = -1,
   });
 
   final String id;
@@ -199,6 +200,9 @@ class CartSlot {
   int fadeInMs;
   int fadeOutMs;
 
+  /// 在 Pad 网格中的位置（行优先编号，-1 表示未分配，需要迁移补齐）。
+  int gridIndex;
+
   Duration get fadeIn => Duration(milliseconds: fadeInMs);
   Duration get fadeOut => Duration(milliseconds: fadeOutMs);
 
@@ -215,6 +219,7 @@ class CartSlot {
     double? volume,
     int? fadeInMs,
     int? fadeOutMs,
+    int? gridIndex,
   }) {
     return CartSlot(
       id: id,
@@ -231,6 +236,7 @@ class CartSlot {
       volume: volume ?? this.volume,
       fadeInMs: fadeInMs ?? this.fadeInMs,
       fadeOutMs: fadeOutMs ?? this.fadeOutMs,
+      gridIndex: gridIndex ?? this.gridIndex,
     );
   }
 
@@ -249,6 +255,7 @@ class CartSlot {
     'volume': volume,
     'fadeInMs': fadeInMs,
     'fadeOutMs': fadeOutMs,
+    'gridIndex': gridIndex,
   };
 
   factory CartSlot.fromJson(Map<String, dynamic> json) {
@@ -267,6 +274,7 @@ class CartSlot {
       volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
       fadeInMs: (json['fadeInMs'] as num?)?.toInt() ?? 20,
       fadeOutMs: (json['fadeOutMs'] as num?)?.toInt() ?? 150,
+      gridIndex: (json['gridIndex'] as num?)?.toInt() ?? -1,
     );
   }
 }
@@ -351,6 +359,19 @@ class Show {
   };
 
   factory Show.fromJson(Map<String, dynamic> json) {
+    final rawSlots = (json['cartSlots'] as List<dynamic>? ?? [])
+        .map((e) => CartSlot.fromJson(e as Map<String, dynamic>))
+        .toList();
+    // 旧数据没有 gridIndex，按原顺序补上连续编号。
+    var nextIndex = 0;
+    for (var i = 0; i < rawSlots.length; i++) {
+      if (rawSlots[i].gridIndex < 0) {
+        rawSlots[i] = rawSlots[i].copyWith(gridIndex: nextIndex);
+      }
+      if (rawSlots[i].gridIndex >= nextIndex) {
+        nextIndex = rawSlots[i].gridIndex + 1;
+      }
+    }
     return Show(
       id: json['id'] as String?,
       name: json['name'] as String? ?? '我的演出',
@@ -370,9 +391,7 @@ class Show {
       cues: (json['cues'] as List<dynamic>? ?? [])
           .map((e) => Cue.fromJson(e as Map<String, dynamic>))
           .toList(),
-      cartSlots: (json['cartSlots'] as List<dynamic>? ?? [])
-          .map((e) => CartSlot.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      cartSlots: rawSlots,
     );
   }
 }

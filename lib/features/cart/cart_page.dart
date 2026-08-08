@@ -182,7 +182,7 @@ class _CartPageState extends ConsumerState<CartPage> {
                   onSelected: (v) =>
                       ref.read(showProvider.notifier).setPadColumns(v),
                   itemBuilder: (context) => [
-                    for (final n in [3, 4, 5, 6, 7, 8])
+                    for (final n in [3, 4, 5, 6, 7])
                       PopupMenuItem(value: n, child: Text('每行 $n 个')),
                   ],
                   child: Padding(
@@ -325,6 +325,14 @@ class _SlotGrid extends StatelessWidget {
             (constraints.maxWidth - hPadding - spacing * (columns - 1)) /
             columns;
         final tileHeight = tileWidth / 1.05;
+        final byIndex = <int, CartSlot>{for (final s in slots) s.gridIndex: s};
+        var maxIndex = -1;
+        for (final idx in byIndex.keys) {
+          if (idx > maxIndex) maxIndex = idx;
+        }
+        // 非锁定状态额外显示一整行空位，方便把 Pad 拖到新的一行。
+        final usedCells = maxIndex + 1;
+        final itemCount = usedCells + (locked ? 0 : columns);
         return GridView.builder(
           padding: EdgeInsets.fromLTRB(16, 4, 16, 20),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -333,9 +341,31 @@ class _SlotGrid extends StatelessWidget {
             crossAxisSpacing: spacing,
             childAspectRatio: 1.05,
           ),
-          itemCount: slots.length,
+          itemCount: itemCount,
           itemBuilder: (context, index) {
-            final slot = slots[index];
+            final slot = byIndex[index];
+            if (slot == null) {
+              if (locked) return const _EmptyPadCell();
+              return DragTarget<CartSlot>(
+                onAcceptWithDetails: (details) => onMove(details.data, index),
+                builder: (context, candidates, rejected) {
+                  final hovering = candidates.isNotEmpty;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    decoration: hovering
+                        ? BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: CueBoxColors.primary,
+                              width: 2,
+                            ),
+                          )
+                        : null,
+                    child: const _EmptyPadCell(),
+                  );
+                },
+              );
+            }
             final isPlaying = playing.values.any(
               (p) => p.sourceId == slot.id && !p.isStopping,
             );
@@ -395,6 +425,29 @@ class _SlotGrid extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+/// Pad 网格里的空位：可接受拖入的占位格。
+class _EmptyPadCell extends StatelessWidget {
+  const _EmptyPadCell();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: CueBoxColors.surface.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: CueBoxColors.border),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.add,
+          size: 22,
+          color: CueBoxColors.textFaint.withValues(alpha: 0.55),
+        ),
+      ),
     );
   }
 }

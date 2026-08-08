@@ -299,9 +299,16 @@ void main() {
     await notifier.addCartSlot(uri: 'c.mp3', name: 'C');
     final show = container.read(showProvider).value!.activeShow;
 
+    // A 拖到 C 的位置（2 号位被占用）：交换位置。
     await notifier.moveCartSlot(show.cartSlots[0].id, 2);
-    final moved = container.read(showProvider).value!.activeShow.cartSlots;
-    expect(moved.map((s) => s.name).toList(), ['B', 'C', 'A']);
+    var moved = container.read(showProvider).value!.activeShow.cartSlots;
+    expect(moved.map((s) => s.name).toList(), ['C', 'B', 'A']);
+
+    // C 拖到空位 5：只移动自己，留下 3、4 空位。
+    await notifier.moveCartSlot(moved.first.id, 5);
+    moved = container.read(showProvider).value!.activeShow.cartSlots;
+    expect(moved.map((s) => s.name).toList(), ['B', 'A', 'C']);
+    expect(moved.map((s) => s.gridIndex).toList(), [1, 2, 5]);
 
     await notifier.setPadColumns(7);
     expect(container.read(showProvider).value!.activeShow.padColumns, 7);
@@ -328,6 +335,8 @@ void main() {
     expect(lib.shows[0].cues.length, 1);
     expect(lib.shows[1].kind, ShowKind.cart);
     expect(lib.shows[1].cartSlots.length, 1);
+    // 旧数据没有位置信息，自动补成第一个格子。
+    expect(lib.shows[1].cartSlots.single.gridIndex, 0);
   });
 
   test('工程默认参数应用于新加入的音频', () async {

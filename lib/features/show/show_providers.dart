@@ -120,6 +120,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
                   shortcutKeyId: c.shortcutKeyId,
                   shortcutLabel: c.shortcutLabel,
                   followGlobal: c.followGlobal,
+                  gridIndex: c.gridIndex,
                 ),
               )
               .toList(),
@@ -149,6 +150,14 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
         activeShowId: lib.activeShowId,
       ),
     );
+  }
+
+  int _nextPadIndex(Show show) {
+    var maxIndex = -1;
+    for (final s in show.cartSlots) {
+      if (s.gridIndex > maxIndex) maxIndex = s.gridIndex;
+    }
+    return maxIndex + 1;
   }
 
   // ---------- 工程管理 ----------
@@ -318,6 +327,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
             fadeOutMs: show.defaultFadeOutMs,
             loop: show.defaultLoop,
             followGlobal: true,
+            gridIndex: _nextPadIndex(show),
           ),
         ],
       ),
@@ -353,8 +363,9 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
   }
 
   Future<void> addCartSlots(List<({String uri, String name})> items) {
-    return _mutateShow(
-      (show) => show.copyWith(
+    return _mutateShow((show) {
+      var next = _nextPadIndex(show);
+      return show.copyWith(
         cartSlots: [
           ...show.cartSlots,
           for (final item in items)
@@ -367,10 +378,11 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
               fadeOutMs: show.defaultFadeOutMs,
               loop: show.defaultLoop,
               followGlobal: true,
+              gridIndex: next++,
             ),
         ],
-      ),
-    );
+      );
+    });
   }
 
   Future<void> addCartSlotWithParams({
@@ -407,6 +419,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
             shortcutKeyId: shortcutKeyId,
             shortcutLabel: shortcutLabel,
             followGlobal: followGlobal,
+            gridIndex: _nextPadIndex(show),
           ),
         ],
       ),
@@ -459,16 +472,26 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
     });
   }
 
-  /// 把指定 Pad 移动到 [targetIndex]（目标索引为移除自身后的插入位置）。
+  /// 把指定 Pad 放到 [targetIndex]：空位直接移入，被占则与占位 Pad 交换。
   Future<void> moveCartSlot(String id, int targetIndex) {
     return _mutateShow((show) {
-      final slots = [...show.cartSlots];
-      final idx = slots.indexWhere((s) => s.id == id);
-      if (idx < 0) return show;
-      final slot = slots.removeAt(idx);
-      final target = targetIndex.clamp(0, slots.length).toInt();
-      slots.insert(target, slot);
-      return show.copyWith(cartSlots: slots);
+      final dragged = show.cartSlots.where((s) => s.id == id).firstOrNull;
+      if (dragged == null) return show;
+      final oldIndex = dragged.gridIndex;
+      if (oldIndex == targetIndex) return show;
+      final occupant = show.cartSlots
+          .where((s) => s.gridIndex == targetIndex)
+          .firstOrNull;
+      final next = [
+        for (final s in show.cartSlots)
+          if (s.id == id)
+            s.copyWith(gridIndex: targetIndex)
+          else if (occupant != null && s.id == occupant.id)
+            s.copyWith(gridIndex: oldIndex)
+          else
+            s,
+      ]..sort((a, b) => a.gridIndex.compareTo(b.gridIndex));
+      return show.copyWith(cartSlots: next);
     });
   }
 
