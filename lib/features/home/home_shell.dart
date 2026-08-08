@@ -47,13 +47,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 
   bool _onGlobalKey(KeyEvent event) {
-    if (event is! KeyDownEvent || _isTyping) return false;
+    if (_isTyping) return false;
     final kind = ref.read(showProvider).valueOrNull?.activeShow.kind;
-    if (event.logicalKey == LogicalKeyboardKey.space && kind == ShowKind.cue) {
-      ref.read(cueControllerProvider.notifier).go();
+    if (event.logicalKey == LogicalKeyboardKey.space) {
+      if (kind != ShowKind.cue) return false;
+      if (event is KeyDownEvent) {
+        ref.read(cueControllerProvider.notifier).go();
+      }
+      // 空格的所有事件都吞掉，防止焦点按钮（如标题）被空格激活。
       return true;
     }
-    if (event.logicalKey == LogicalKeyboardKey.escape) {
+    if (event.logicalKey == LogicalKeyboardKey.escape &&
+        event is KeyDownEvent) {
       final engine = ref.read(playbackEngineProvider.notifier);
       if (engine.isAnyStopping) {
         ref.read(cueControllerProvider.notifier).cancelWaits();

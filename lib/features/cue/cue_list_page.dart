@@ -69,6 +69,17 @@ class _CueListPageState extends ConsumerState<CueListPage> {
         );
   }
 
+  Future<void> _editFadeTime(Cue cue) async {
+    final ms = await showDialog<int>(
+      context: context,
+      builder: (_) => _WaitTimeDialog(title: '淡变时长', initialMs: cue.fadeInMs),
+    );
+    if (ms == null) return;
+    await ref
+        .read(showProvider.notifier)
+        .updateCue(cue.copyWith(fadeInMs: ms, fadeOutMs: ms));
+  }
+
   void _addControlCue(ControlAction action) {
     final show = ref.read(activeShowProvider).valueOrNull;
     if (show == null) return;
@@ -383,6 +394,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
               ).showSnackBar(SnackBar(content: Text('已复制 Cue「${cue.name}」')));
             },
             onEditWait: (c, isPre) => _editWaitTime(c, isPre),
+            onEditFade: () => _editFadeTime(cue),
           ),
         );
         if (locked) {
@@ -709,6 +721,7 @@ class _ControlInfoRow extends StatelessWidget {
     required this.fadeOutMs,
     required this.onEditPre,
     required this.onEditPost,
+    required this.onEditFade,
   });
 
   final int preMs;
@@ -717,6 +730,7 @@ class _ControlInfoRow extends StatelessWidget {
   final int fadeOutMs;
   final VoidCallback onEditPre;
   final VoidCallback onEditPost;
+  final VoidCallback onEditFade;
 
   @override
   Widget build(BuildContext context) {
@@ -725,7 +739,11 @@ class _ControlInfoRow extends StatelessWidget {
       children: [
         _TimeText(label: '前', text: fmtMmSsCc(preMs), onDoubleTap: onEditPre),
         const SizedBox(width: 12),
-        _TimeText(label: '时长', text: fmtMmSsCc(fadeInMs)),
+        _TimeText(
+          label: '时长',
+          text: fmtMmSsCc(fadeInMs),
+          onDoubleTap: onEditFade,
+        ),
         const SizedBox(width: 12),
         _TimeText(label: '后', text: fmtMmSsCc(postMs), onDoubleTap: onEditPost),
       ],
@@ -893,6 +911,7 @@ class _CueTile extends StatefulWidget {
     required this.onDelete,
     required this.onCopy,
     required this.onEditWait,
+    required this.onEditFade,
   });
 
   final Cue cue;
@@ -911,6 +930,7 @@ class _CueTile extends StatefulWidget {
   final VoidCallback onDelete;
   final VoidCallback onCopy;
   final void Function(Cue cue, bool isPre) onEditWait;
+  final VoidCallback onEditFade;
 
   @override
   State<_CueTile> createState() => _CueTileState();
@@ -939,6 +959,7 @@ class _CueTileState extends State<_CueTile> {
     final onDelete = widget.onDelete;
     final onCopy = widget.onCopy;
     final onEditWait = widget.onEditWait;
+    final onEditFade = widget.onEditFade;
     return AnimatedContainer(
       duration: Duration(milliseconds: 200),
       curve: Curves.easeOut,
@@ -1078,6 +1099,7 @@ class _CueTileState extends State<_CueTile> {
                                 fadeOutMs: cue.fadeOutMs,
                                 onEditPre: () => onEditWait(cue, true),
                                 onEditPost: () => onEditWait(cue, false),
+                                onEditFade: onEditFade,
                               )
                             : Row(
                                 mainAxisSize: MainAxisSize.min,
