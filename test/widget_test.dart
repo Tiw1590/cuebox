@@ -147,6 +147,21 @@ void main() {
     expect(lib.activeShow.name, '我的演出');
   });
 
+  test('演出项目最多创建 3 个', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await container.read(showProvider.future);
+    final notifier = container.read(showProvider.notifier);
+    await notifier.createShow(name: '第二场');
+    await notifier.createShow(name: '第三场');
+    expect(container.read(showProvider).value!.shows.length, 3);
+
+    final ok = await notifier.createShow(name: '第四场');
+    expect(ok, isFalse);
+    expect(container.read(showProvider).value!.shows.length, 3);
+  });
+
   test('锁定只对当前演出生效且可持久化', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

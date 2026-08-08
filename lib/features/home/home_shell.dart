@@ -434,16 +434,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       case 'new_cue_show':
         final name = await _promptShowName(context, title: '新建 Cue List');
         if (name != null && mounted) {
-          await ref
+          final ok = await ref
               .read(showProvider.notifier)
               .createShow(name: name, kind: ShowKind.cue);
+          if (!ok) _showSnack('最多创建 3 个演出项目，已达上限');
         }
       case 'new_cart_show':
         final name = await _promptShowName(context, title: '新建 Pad Set');
         if (name != null && mounted) {
-          await ref
+          final ok = await ref
               .read(showProvider.notifier)
               .createShow(name: name, kind: ShowKind.cart);
+          if (!ok) _showSnack('最多创建 3 个演出项目，已达上限');
         }
       case 'toggle_lock':
         final activeId = ref.read(showProvider).valueOrNull?.activeShowId;
@@ -488,7 +490,7 @@ class _ShowSwitcherSheet extends ConsumerWidget {
                 Text('演出项目', style: Theme.of(context).textTheme.titleLarge),
                 Spacer(),
                 Text(
-                  '${shows.length} 个演出项目',
+                  '${shows.length} / 3 个演出项目',
                   style: TextStyle(
                     fontSize: 12.5,
                     color: CueBoxColors.textFaint,
@@ -727,10 +729,16 @@ class _ShowSwitcherSheet extends ConsumerWidget {
                         title: '新建 Cue List',
                       );
                       if (name != null) {
-                        await ref
+                        final ok = await ref
                             .read(showProvider.notifier)
                             .createShow(name: name, kind: ShowKind.cue);
-                        if (context.mounted) Navigator.of(context).pop();
+                        if (ok && context.mounted) {
+                          Navigator.of(context).pop();
+                        } else if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('最多创建 3 个演出项目，已达上限')),
+                          );
+                        }
                       }
                     },
                     icon: Icon(Icons.view_list_rounded, size: 19),
@@ -746,10 +754,16 @@ class _ShowSwitcherSheet extends ConsumerWidget {
                         title: '新建 Pad Set',
                       );
                       if (name != null) {
-                        await ref
+                        final ok = await ref
                             .read(showProvider.notifier)
                             .createShow(name: name, kind: ShowKind.cart);
-                        if (context.mounted) Navigator.of(context).pop();
+                        if (ok && context.mounted) {
+                          Navigator.of(context).pop();
+                        } else if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('最多创建 3 个演出项目，已达上限')),
+                          );
+                        }
                       }
                     },
                     icon: Icon(Icons.grid_view_rounded, size: 19),

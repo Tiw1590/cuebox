@@ -162,11 +162,13 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
 
   // ---------- 工程管理 ----------
 
-  Future<void> createShow({
+  /// 创建新演出项目；当前已达到 3 个上限时返回 false。
+  Future<bool> createShow({
     String name = '新演出',
     ShowKind kind = ShowKind.cue,
   }) async {
     final lib = _current;
+    if (lib != null && lib.shows.length >= 3) return false;
     final show = Show(name: name, kind: kind);
     await _set(
       ShowLibrary(
@@ -174,6 +176,7 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
         activeShowId: show.id,
       ),
     );
+    return true;
   }
 
   Future<void> renameShow(String id, String name) {
