@@ -725,9 +725,7 @@ class _ControlInfoRow extends StatelessWidget {
       children: [
         _TimeText(label: '前', text: fmtMmSsCc(preMs), onDoubleTap: onEditPre),
         const SizedBox(width: 12),
-        _TimeText(label: '淡入', text: fmtMmSsCc(fadeInMs)),
-        const SizedBox(width: 12),
-        _TimeText(label: '淡出', text: fmtMmSsCc(fadeOutMs)),
+        _TimeText(label: '时长', text: fmtMmSsCc(fadeInMs)),
         const SizedBox(width: 12),
         _TimeText(label: '后', text: fmtMmSsCc(postMs), onDoubleTap: onEditPost),
       ],
@@ -1680,18 +1678,14 @@ class _ControlCueEditorState extends State<_ControlCueEditor> {
               onChanged: (v) => setState(() => _postWaitMs = v.round()),
             ),
             _ControlSliderRow(
-              label: '淡入',
+              label: '时长',
               valueLabel: fmtMmSsCc(_fadeInMs),
               value: _fadeInMs.toDouble(),
               max: 30000,
-              onChanged: (v) => setState(() => _fadeInMs = v.round()),
-            ),
-            _ControlSliderRow(
-              label: '淡出',
-              valueLabel: fmtMmSsCc(_fadeOutMs),
-              value: _fadeOutMs.toDouble(),
-              max: 30000,
-              onChanged: (v) => setState(() => _fadeOutMs = v.round()),
+              onChanged: (v) => setState(() {
+                _fadeInMs = v.round();
+                _fadeOutMs = v.round();
+              }),
             ),
             _ControlSwitchRow(
               title: '接',

@@ -166,6 +166,33 @@ class CueController extends Notifier<CueControlState> {
     final show = ref.read(showProvider).valueOrNull?.activeShow;
     if (cue.controlAction != null) {
       await _executeControl(cue, engine, show);
+      state = state.copyWith(lastTriggeredCueId: cue.id);
+      var consumed = 1;
+      final next = _nextOf(cue);
+      if (next != null) {
+        if (cue.playNextTogether) {
+          if (await _triggerCompanion(next, engine, show, token)) {
+            consumed = 2;
+          }
+        } else if (cue.autoNext) {
+          // 接：等完“后等”再触发下一条。
+          if (cue.postWaitMs > 0) {
+            state = state.copyWith(
+              waitingCueId: cue.id,
+              waitingPhase: WaitPhase.post,
+            );
+            if (!await _wait(cue.postWaitMs)) {
+              state = state.copyWith(waitingCueId: null, waitingPhase: null);
+              return consumed;
+            }
+            state = state.copyWith(waitingCueId: null, waitingPhase: null);
+          }
+          if (await _triggerCompanion(next, engine, show, token)) {
+            consumed = 2;
+          }
+        }
+      }
+      return consumed;
     } else {
       // 优先级：音频单独设置（followGlobal=false）用自己参数，否则用项目全局参数。
       final volume = cue.followGlobal
@@ -199,55 +226,70 @@ class CueController extends Notifier<CueControlState> {
     // 同时播放下一个（叠放，不等待、不独占）。
     var consumed = 1;
     if (cue.playNextTogether) {
-      final cues =
-          ref.read(showProvider).valueOrNull?.activeShow.cues ?? <Cue>[];
-      final idx = cues.indexWhere((c) => c.id == cue.id);
-      if (idx >= 0 && idx + 1 < cues.length) {
-        final next = cues[idx + 1];
-        // 下一条自己的“开始前等待”同样生效（进度条显示在它自己的行上）。
-        if (next.preWaitMs > 0) {
-          state = state.copyWith(
-            waitingCueId: next.id,
-            waitingPhase: WaitPhase.pre,
-          );
-          if (!await _wait(next.preWaitMs)) {
-            state = state.copyWith(waitingCueId: null, waitingPhase: null);
-            return consumed;
-          }
-          if (token != _waitToken) {
-            state = state.copyWith(waitingCueId: null, waitingPhase: null);
-            return consumed;
-          }
-          state = state.copyWith(waitingCueId: null, waitingPhase: null);
-        }
-        final nextVolume = next.followGlobal
-            ? (show?.defaultVolume ?? 1.0)
-            : next.volume;
-        final nextLoop = next.followGlobal
-            ? (show?.defaultLoop ?? false)
-            : next.loop;
-        final nextFadeInMs = next.followGlobal
-            ? (show?.defaultFadeInMs ?? 20)
-            : next.fadeInMs;
-        final nextFadeOutMs = next.followGlobal
-            ? (show?.defaultFadeOutMs ?? 150)
-            : next.fadeOutMs;
-        await engine.trigger(
-          uri: next.uri,
-          label: next.name,
-          sourceId: next.id,
-          startMs: next.startMs,
-          endMs: next.endMs,
-          loop: nextLoop,
-          volume: nextVolume,
-          fadeIn: Duration(milliseconds: nextFadeInMs),
-          fadeOut: Duration(milliseconds: nextFadeOutMs),
-          stopOthers: false,
-        );
+      final next = _nextOf(cue);
+      if (next != null && await _triggerCompanion(next, engine, show, token)) {
         consumed = 2;
       }
     }
     return consumed;
+  }
+
+  Cue? _nextOf(Cue cue) {
+    final cues = ref.read(showProvider).valueOrNull?.activeShow.cues ?? <Cue>[];
+    final idx = cues.indexWhere((c) => c.id == cue.id);
+    if (idx < 0 || idx + 1 >= cues.length) return null;
+    return cues[idx + 1];
+  }
+
+  /// 伴随触发下一条（“同”或控制 Cue 的“接”）：尊重其前等，叠放播放。
+  Future<bool> _triggerCompanion(
+    Cue next,
+    PlaybackEngine engine,
+    Show? show,
+    int token,
+  ) async {
+    if (next.preWaitMs > 0) {
+      state = state.copyWith(
+        waitingCueId: next.id,
+        waitingPhase: WaitPhase.pre,
+      );
+      if (!await _wait(next.preWaitMs)) {
+        state = state.copyWith(waitingCueId: null, waitingPhase: null);
+        return false;
+      }
+      if (token != _waitToken) {
+        state = state.copyWith(waitingCueId: null, waitingPhase: null);
+        return false;
+      }
+      state = state.copyWith(waitingCueId: null, waitingPhase: null);
+    }
+    if (next.controlAction != null) {
+      await _executeControl(next, engine, show);
+      return true;
+    }
+    final volume = next.followGlobal
+        ? (show?.defaultVolume ?? 1.0)
+        : next.volume;
+    final loop = next.followGlobal ? (show?.defaultLoop ?? false) : next.loop;
+    final fadeInMs = next.followGlobal
+        ? (show?.defaultFadeInMs ?? 20)
+        : next.fadeInMs;
+    final fadeOutMs = next.followGlobal
+        ? (show?.defaultFadeOutMs ?? 150)
+        : next.fadeOutMs;
+    await engine.trigger(
+      uri: next.uri,
+      label: next.name,
+      sourceId: next.id,
+      startMs: next.startMs,
+      endMs: next.endMs,
+      loop: loop,
+      volume: volume,
+      fadeIn: Duration(milliseconds: fadeInMs),
+      fadeOut: Duration(milliseconds: fadeOutMs),
+      stopOthers: false,
+    );
+    return true;
   }
 
   /// 执行控制 Cue（播放/暂停/停止目标音频）。

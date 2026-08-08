@@ -34,6 +34,39 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   bool _dragging = false;
 
   @override
+  void initState() {
+    super.initState();
+    // 空格/ESC 用全局键盘监听：不受焦点在哪个按钮上的影响。
+    HardwareKeyboard.instance.addHandler(_onGlobalKey);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onGlobalKey);
+    super.dispose();
+  }
+
+  bool _onGlobalKey(KeyEvent event) {
+    if (event is! KeyDownEvent || _isTyping) return false;
+    final kind = ref.read(showProvider).valueOrNull?.activeShow.kind;
+    if (event.logicalKey == LogicalKeyboardKey.space && kind == ShowKind.cue) {
+      ref.read(cueControllerProvider.notifier).go();
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      final engine = ref.read(playbackEngineProvider.notifier);
+      if (engine.isAnyStopping) {
+        ref.read(cueControllerProvider.notifier).cancelWaits();
+        engine.stopAll(fadeOut: Duration.zero);
+      } else {
+        ref.read(cueControllerProvider.notifier).stopAll();
+      }
+      return true;
+    }
+    return false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final libAsync = ref.watch(showProvider);
     final lib = libAsync.valueOrNull;
@@ -179,12 +212,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }) {
     final slots = lib?.activeShow.cartSlots ?? <CartSlot>[];
     final shortcuts = <ShortcutActivator, Intent>{
-      SingleActivator(LogicalKeyboardKey.space): GoIntent(),
-      SingleActivator(LogicalKeyboardKey.escape): StopIntent(),
       SingleActivator(LogicalKeyboardKey.keyC, control: true): CopyIntent(),
       SingleActivator(LogicalKeyboardKey.keyV, control: true): PasteIntent(),
       SingleActivator(LogicalKeyboardKey.keyC, meta: true): CopyIntent(),
       SingleActivator(LogicalKeyboardKey.keyV, meta: true): PasteIntent(),
+      SingleActivator(LogicalKeyboardKey.backspace, meta: true): DeleteIntent(),
+      SingleActivator(LogicalKeyboardKey.backspace, alt: true): DeleteIntent(),
       for (final slot in slots)
         if (slot.shortcutKeyId case final keyId?)
           if (LogicalKeyboardKey.findKeyByKeyId(keyId) case final key?)
@@ -195,33 +228,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       shortcuts: shortcuts,
       child: Actions(
         actions: {
-          GoIntent: CallbackAction<GoIntent>(
-            onInvoke: (_) {
-              if (kind == ShowKind.cue && !_isTyping) {
-                ref.read(cueControllerProvider.notifier).go();
-              }
-              return null;
-            },
-          ),
-          StopIntent: CallbackAction<StopIntent>(
-            onInvoke: (_) {
-              if (!_isTyping) {
-                final engine = ref.read(playbackEngineProvider.notifier);
-                if (engine.isAnyStopping) {
-                  // 第二下 ESC：立即硬停，不等淡出。
-                  ref.read(cueControllerProvider.notifier).cancelWaits();
-                  engine.stopAll(fadeOut: Duration.zero);
-                } else {
-                  // 第一下 ESC：淡出停止。
-                  ref.read(cueControllerProvider.notifier).stopAll();
-                }
-              }
-              return null;
-            },
-          ),
           CopyIntent: CallbackAction<CopyIntent>(
             onInvoke: (_) {
               _copyActive();
+              return null;
+            },
+          ),
+          DeleteIntent: CallbackAction<DeleteIntent>(
+            onInvoke: (_) {
+              if (!_isTyping) _deleteSelectedCue();
               return null;
             },
           ),
@@ -276,6 +291,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       final cue = show.cues.where((c) => c.id == selectedId).firstOrNull;
       if (cue != null) copyCueToClipboard(ref, cue);
     }
+  }
+
+  void _deleteSelectedCue() {
+    final show = ref.read(showProvider).valueOrNull?.activeShow;
+    if (show == null || show.kind != ShowKind.cue) return;
+    final selectedId = ref.read(cueControllerProvider).selectedCueId;
+    if (selectedId == null) return;
+    if (!show.cues.any((c) => c.id == selectedId)) return;
+    ref.read(showProvider.notifier).removeCue(selectedId);
+    ref.read(cueControllerProvider.notifier).clearSelection();
   }
 
   void _triggerCard(String slotId) {
@@ -835,12 +860,8 @@ class _MenuRow extends StatelessWidget {
   }
 }
 
-class GoIntent extends Intent {
-  const GoIntent();
-}
-
-class StopIntent extends Intent {
-  const StopIntent();
+class DeleteIntent extends Intent {
+  const DeleteIntent();
 }
 
 class CopyIntent extends Intent {
