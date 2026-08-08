@@ -421,63 +421,142 @@ class _CueToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 6, 8, 6),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _LoopChip(active: listLoop, onTap: onToggleLoop),
-            SizedBox(width: 6),
-            IconButton(
-              tooltip: '在选中音频后添加“播放”控制',
-              visualDensity: VisualDensity.compact,
-              onPressed: () => onAddControl(ControlAction.play),
-              color: CueBoxColors.primary,
-              icon: const Icon(Icons.play_circle_outline, size: 21),
-            ),
-            IconButton(
-              tooltip: '在选中音频后添加“暂停”控制',
-              visualDensity: VisualDensity.compact,
-              onPressed: () => onAddControl(ControlAction.pause),
-              color: CueBoxColors.amber,
-              icon: const Icon(Icons.pause_circle_outline, size: 21),
-            ),
-            IconButton(
-              tooltip: '在选中音频后添加“停止”控制',
-              visualDensity: VisualDensity.compact,
-              onPressed: () => onAddControl(ControlAction.stop),
-              color: CueBoxColors.danger,
-              icon: const Icon(Icons.stop_circle_outlined, size: 21),
-            ),
-            IconButton(
-              tooltip: '全局参数',
-              visualDensity: VisualDensity.compact,
-              onPressed: onProjectSettings,
-              color: CueBoxColors.textSecondary,
-              icon: Icon(Icons.tune, size: 21),
-            ),
-            if (onPaste != null)
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 520;
+          if (compact) {
+            return Row(
+              children: [
+                _LoopChip(active: listLoop, onTap: onToggleLoop),
+                const Spacer(),
+                PopupMenuButton<String>(
+                  tooltip: '更多工具',
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'play':
+                        onAddControl(ControlAction.play);
+                      case 'pause':
+                        onAddControl(ControlAction.pause);
+                      case 'stop':
+                        onAddControl(ControlAction.stop);
+                      case 'settings':
+                        onProjectSettings();
+                      case 'paste':
+                        onPaste?.call();
+                      case 'clear':
+                        onClearAll();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'play',
+                      child: _MenuRow(
+                        icon: Icons.play_circle_outline,
+                        label: '添加播放控制',
+                        color: CueBoxColors.primary,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'pause',
+                      child: _MenuRow(
+                        icon: Icons.pause_circle_outline,
+                        label: '添加暂停控制',
+                        color: CueBoxColors.amber,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'stop',
+                      child: _MenuRow(
+                        icon: Icons.stop_circle_outlined,
+                        label: '添加停止控制',
+                        color: CueBoxColors.danger,
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'settings',
+                      child: _MenuRow(icon: Icons.tune, label: '全局参数'),
+                    ),
+                    if (onPaste != null)
+                      PopupMenuItem(
+                        value: 'paste',
+                        child: _MenuRow(
+                          icon: Icons.content_paste_go,
+                          label: '粘贴 Cue',
+                        ),
+                      ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'clear',
+                      child: _MenuRow(
+                        icon: Icons.delete_sweep_outlined,
+                        label: '清空列表',
+                        danger: true,
+                      ),
+                    ),
+                  ],
+                  icon: const Icon(Icons.more_horiz_rounded),
+                ),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              _LoopChip(active: listLoop, onTap: onToggleLoop),
+              const SizedBox(width: 6),
               IconButton(
-                tooltip: '粘贴 Cue',
+                tooltip: '在选中音频后添加“播放”控制',
                 visualDensity: VisualDensity.compact,
-                onPressed: onPaste,
-                color: CueBoxColors.secondary,
-                icon: Icon(Icons.content_paste_go, size: 21),
+                onPressed: () => onAddControl(ControlAction.play),
+                color: CueBoxColors.primary,
+                icon: const Icon(Icons.play_circle_outline, size: 21),
               ),
-            Text(
-              '共 $cueCount 条',
-              style: TextStyle(fontSize: 12, color: CueBoxColors.textFaint),
-            ),
-            IconButton(
-              tooltip: '清空列表',
-              visualDensity: VisualDensity.compact,
-              onPressed: cueCount > 0 ? onClearAll : null,
-              color: cueCount > 0
-                  ? CueBoxColors.textSecondary
-                  : CueBoxColors.textFaint.withValues(alpha: 0.4),
-              icon: Icon(Icons.delete_sweep_outlined, size: 21),
-            ),
-          ],
-        ),
+              IconButton(
+                tooltip: '在选中音频后添加“暂停”控制',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => onAddControl(ControlAction.pause),
+                color: CueBoxColors.amber,
+                icon: const Icon(Icons.pause_circle_outline, size: 21),
+              ),
+              IconButton(
+                tooltip: '在选中音频后添加“停止”控制',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => onAddControl(ControlAction.stop),
+                color: CueBoxColors.danger,
+                icon: const Icon(Icons.stop_circle_outlined, size: 21),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: '全局参数',
+                visualDensity: VisualDensity.compact,
+                onPressed: onProjectSettings,
+                color: CueBoxColors.textSecondary,
+                icon: const Icon(Icons.tune, size: 21),
+              ),
+              if (onPaste != null)
+                IconButton(
+                  tooltip: '粘贴 Cue',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onPaste,
+                  color: CueBoxColors.secondary,
+                  icon: const Icon(Icons.content_paste_go, size: 21),
+                ),
+              Text(
+                '共 $cueCount 条',
+                style: TextStyle(fontSize: 12, color: CueBoxColors.textFaint),
+              ),
+              IconButton(
+                tooltip: '清空列表',
+                visualDensity: VisualDensity.compact,
+                onPressed: cueCount > 0 ? onClearAll : null,
+                color: cueCount > 0
+                    ? CueBoxColors.textSecondary
+                    : CueBoxColors.textFaint.withValues(alpha: 0.4),
+                icon: const Icon(Icons.delete_sweep_outlined, size: 21),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1150,15 +1229,18 @@ class _MenuRow extends StatelessWidget {
     required this.icon,
     required this.label,
     this.danger = false,
+    this.color,
   });
 
   final IconData icon;
   final String label;
   final bool danger;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final color = danger ? CueBoxColors.danger : CueBoxColors.textPrimary;
+    final color =
+        this.color ?? (danger ? CueBoxColors.danger : CueBoxColors.textPrimary);
     return Row(
       children: [
         Icon(icon, size: 19, color: color),
