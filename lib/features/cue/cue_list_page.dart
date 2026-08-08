@@ -840,6 +840,102 @@ class _ControlInfoRow extends StatelessWidget {
   }
 }
 
+/// 降级子项的紧凑时间行：单行、小字号，前/后（控制项还有时长）可双击修改。
+class _CompactChildTimes extends StatelessWidget {
+  const _CompactChildTimes({
+    required this.cue,
+    required this.durationFuture,
+    required this.onEditPre,
+    required this.onEditPost,
+    required this.onEditFade,
+  });
+
+  final Cue cue;
+  final Future<int?> durationFuture;
+  final VoidCallback onEditPre;
+  final VoidCallback onEditPost;
+  final VoidCallback onEditFade;
+
+  @override
+  Widget build(BuildContext context) {
+    final isControl = cue.controlAction != null;
+    final duration = isControl
+        ? Future<int?>.value(cue.fadeInMs)
+        : durationFuture;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _CompactTime(
+          label: '前',
+          text: fmtMmSsCc(cue.preWaitMs),
+          onDoubleTap: onEditPre,
+        ),
+        const SizedBox(width: 8),
+        FutureBuilder<int?>(
+          future: duration,
+          builder: (_, snap) {
+            final total = snap.data ?? 0;
+            final trimmed = isControl ? cue.fadeInMs : _trimmed(total);
+            return _CompactTime(
+              label: '时长',
+              text: fmtMmSsCc(trimmed),
+              onDoubleTap: isControl ? onEditFade : null,
+            );
+          },
+        ),
+        const SizedBox(width: 8),
+        _CompactTime(
+          label: '后',
+          text: fmtMmSsCc(cue.postWaitMs),
+          onDoubleTap: onEditPost,
+        ),
+      ],
+    );
+  }
+
+  int _trimmed(int totalMs) {
+    if (totalMs <= 0) return 0;
+    if (cue.endMs > 0 && cue.endMs > cue.startMs) {
+      return cue.endMs - cue.startMs;
+    }
+    if (cue.startMs > 0) return totalMs - cue.startMs;
+    return totalMs;
+  }
+}
+
+class _CompactTime extends StatelessWidget {
+  const _CompactTime({
+    required this.label,
+    required this.text,
+    this.onDoubleTap,
+  });
+
+  final String label;
+  final String text;
+  final VoidCallback? onDoubleTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Text(
+      '$label $text',
+      style: TextStyle(
+        fontSize: 10.5,
+        color: CueBoxColors.textFaint,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+    if (onDoubleTap == null) return row;
+    return Tooltip(
+      message: '双击修改',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onDoubleTap: onDoubleTap,
+        child: row,
+      ),
+    );
+  }
+}
+
 /// 时长槽：空闲显示总时长，播放中显示实时已播 + 进度条。
 class _DurationSlot extends StatelessWidget {
   const _DurationSlot({
@@ -1082,9 +1178,9 @@ class _CueTileState extends State<_CueTile> {
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               12,
-              cue.demoted ? 7 : 12,
+              cue.demoted ? 3 : 12,
               6,
-              cue.demoted ? 7 : 12,
+              cue.demoted ? 3 : 12,
             ),
             child: Row(
               children: [
@@ -1103,11 +1199,11 @@ class _CueTileState extends State<_CueTile> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: cue.demoted ? 12.5 : 15,
+                          fontSize: cue.demoted ? 12 : 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (cue.controlAction != null) ...[
+                      if (!cue.demoted && cue.controlAction != null) ...[
                         const SizedBox(height: 5),
                         Wrap(
                           spacing: 8,
@@ -1149,9 +1245,10 @@ class _CueTileState extends State<_CueTile> {
                               ),
                           ],
                         ),
-                      ] else if (cue.loop ||
-                          cue.autoNext ||
-                          cue.playNextTogether) ...[
+                      ] else if (!cue.demoted &&
+                          (cue.loop ||
+                              cue.autoNext ||
+                              cue.playNextTogether)) ...[
                         const SizedBox(height: 5),
                         Wrap(
                           spacing: 8,
@@ -1185,65 +1282,78 @@ class _CueTileState extends State<_CueTile> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                if (!hideTimes && !cue.demoted)
+                if (!hideTimes)
                   Flexible(
                     child: Align(
                       alignment: Alignment.centerRight,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: cue.controlAction != null
-                            ? _ControlInfoRow(
-                                preMs: cue.preWaitMs,
-                                postMs: cue.postWaitMs,
-                                fadeInMs: cue.fadeInMs,
-                                fadeOutMs: cue.fadeOutMs,
-                                onEditPre: () => onEditWait(cue, true),
-                                onEditPost: () => onEditWait(cue, false),
-                                onEditFade: onEditFade,
-                                fadeActive:
-                                    waitingForThis &&
-                                    waitingPhase == WaitPhase.fade,
-                                fadeDurationMs: cue.fadeInMs,
-                                fadeColor: switch (cue.controlAction!) {
-                                  ControlAction.play => CueBoxColors.primary,
-                                  ControlAction.pause => CueBoxColors.amber,
-                                  ControlAction.stop => CueBoxColors.danger,
-                                },
-                              )
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _WaitSlot(
-                                    label: '前',
-                                    text: fmtMmSsCc(cue.preWaitMs),
-                                    color: CueBoxColors.amber,
-                                    active:
-                                        waitingForThis &&
-                                        waitingPhase == WaitPhase.pre,
-                                    durationMs: cue.preWaitMs,
-                                    onDoubleTap: () => onEditWait(cue, true),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  _DurationSlot(
-                                    activePlay: activePlay,
-                                    durationFuture: _durationFuture,
-                                    startMs: cue.startMs,
-                                    endMs: cue.endMs,
-                                  ),
-                                  const SizedBox(width: 14),
-                                  _WaitSlot(
-                                    label: '后',
-                                    text: fmtMmSsCc(cue.postWaitMs),
-                                    color: CueBoxColors.secondary,
-                                    active:
-                                        waitingForThis &&
-                                        waitingPhase == WaitPhase.post,
-                                    durationMs: cue.postWaitMs,
-                                    onDoubleTap: () => onEditWait(cue, false),
-                                  ),
-                                ],
-                              ),
-                      ),
+                      child: cue.demoted
+                          ? _CompactChildTimes(
+                              cue: cue,
+                              durationFuture: _durationFuture,
+                              onEditPre: () => onEditWait(cue, true),
+                              onEditPost: () => onEditWait(cue, false),
+                              onEditFade: onEditFade,
+                            )
+                          : FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: cue.controlAction != null
+                                  ? _ControlInfoRow(
+                                      preMs: cue.preWaitMs,
+                                      postMs: cue.postWaitMs,
+                                      fadeInMs: cue.fadeInMs,
+                                      fadeOutMs: cue.fadeOutMs,
+                                      onEditPre: () => onEditWait(cue, true),
+                                      onEditPost: () => onEditWait(cue, false),
+                                      onEditFade: onEditFade,
+                                      fadeActive:
+                                          waitingForThis &&
+                                          waitingPhase == WaitPhase.fade,
+                                      fadeDurationMs: cue.fadeInMs,
+                                      fadeColor: switch (cue.controlAction!) {
+                                        ControlAction.play =>
+                                          CueBoxColors.primary,
+                                        ControlAction.pause =>
+                                          CueBoxColors.amber,
+                                        ControlAction.stop =>
+                                          CueBoxColors.danger,
+                                      },
+                                    )
+                                  : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _WaitSlot(
+                                          label: '前',
+                                          text: fmtMmSsCc(cue.preWaitMs),
+                                          color: CueBoxColors.amber,
+                                          active:
+                                              waitingForThis &&
+                                              waitingPhase == WaitPhase.pre,
+                                          durationMs: cue.preWaitMs,
+                                          onDoubleTap: () =>
+                                              onEditWait(cue, true),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        _DurationSlot(
+                                          activePlay: activePlay,
+                                          durationFuture: _durationFuture,
+                                          startMs: cue.startMs,
+                                          endMs: cue.endMs,
+                                        ),
+                                        const SizedBox(width: 14),
+                                        _WaitSlot(
+                                          label: '后',
+                                          text: fmtMmSsCc(cue.postWaitMs),
+                                          color: CueBoxColors.secondary,
+                                          active:
+                                              waitingForThis &&
+                                              waitingPhase == WaitPhase.post,
+                                          durationMs: cue.postWaitMs,
+                                          onDoubleTap: () =>
+                                              onEditWait(cue, false),
+                                        ),
+                                      ],
+                                    ),
+                            ),
                     ),
                   ),
                 const SizedBox(width: 6),
