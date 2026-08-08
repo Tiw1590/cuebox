@@ -248,9 +248,13 @@ class CueController extends Notifier<CueControlState> {
     state = state.copyWith(listLoop: !state.listLoop, ended: false);
   }
 
-  Future<void> stopAll() async {
+  void cancelWaits() {
     _waitToken++;
     state = state.copyWith(waitingCueId: null, waitingPhase: null);
+  }
+
+  Future<void> stopAll() async {
+    cancelWaits();
     await ref.read(playbackEngineProvider.notifier).stopAll();
   }
 

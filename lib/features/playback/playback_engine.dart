@@ -53,6 +53,9 @@ class PlaybackEngine extends Notifier<Map<String, ActivePlay>> {
 
   bool get isAnyPlaying => state.isNotEmpty;
 
+  /// 是否有声音正在淡出停止中（用于 ESC 两段式停止判断）。
+  bool get isAnyStopping => state.values.any((p) => p.isStopping);
+
   /// 非循环的播放自然播完时，发出该播放的 id（供 Cue 列表循环推进等使用）。
   Stream<String> get onCompleted => _completedController.stream;
 

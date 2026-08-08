@@ -13,6 +13,7 @@ import '../cue/cue_controller.dart';
 import '../cue/cue_list_page.dart';
 import '../media/media_library_page.dart';
 import '../media/media_providers.dart';
+import '../playback/playback_engine.dart';
 import '../settings/settings_page.dart';
 import '../show/clipboard.dart';
 import '../show/show_models.dart';
@@ -205,7 +206,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           StopIntent: CallbackAction<StopIntent>(
             onInvoke: (_) {
               if (!_isTyping) {
-                ref.read(cueControllerProvider.notifier).stopAll();
+                final engine = ref.read(playbackEngineProvider.notifier);
+                if (engine.isAnyStopping) {
+                  // 第二下 ESC：立即硬停，不等淡出。
+                  ref.read(cueControllerProvider.notifier).cancelWaits();
+                  engine.stopAll(fadeOut: Duration.zero);
+                } else {
+                  // 第一下 ESC：淡出停止。
+                  ref.read(cueControllerProvider.notifier).stopAll();
+                }
               }
               return null;
             },
