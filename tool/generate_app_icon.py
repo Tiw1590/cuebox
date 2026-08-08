@@ -109,8 +109,36 @@ def write_png(path, size, rgba):
         f.write(png)
 
 
-def write_ico(path, entries):
-    """entries: [(pixel_size, png_bytes)]"""
+def _bmp_icon_entry(size, rgba):
+    """小尺寸用 BMP DIB 数据（Windows 资源编译器要求，不能全用 PNG）。"""
+    xor = bytearray()
+    for y in range(size - 1, -1, -1):
+        xor.extend(rgba[y * size * 4 : (y + 1) * size * 4])
+    mask_row_bytes = ((size + 31) // 32) * 4
+    mask = bytearray(mask_row_bytes * size)
+    header = struct.pack(
+        "<IiiHHIIiiII",
+        40,
+        size,
+        size * 2,
+        1,
+        32,
+        0,
+        size * size * 4 + len(mask),
+        0,
+        0,
+        0,
+        0,
+    )
+    return bytes(header) + bytes(xor) + bytes(mask)
+
+
+def write_ico(path):
+    """全部尺寸用 BMP DIB，兼容 Windows 资源编译器 rc.exe。"""
+    entries = [
+        (size, _bmp_icon_entry(size, render(size)))
+        for size in (16, 32, 48, 256)
+    ]
     header = struct.pack("<HHH", 0, 1, len(entries))
     offset = 6 + 16 * len(entries)
     dir_data = b""
@@ -164,9 +192,8 @@ def main():
         print(f"  {path} ({size}x{size})")
 
     print("Windows ICO:")
-    ico_sizes = [16, 32, 48, 256]
     ico_path = os.path.join(root, "windows/runner/resources/app_icon.ico")
-    write_ico(ico_path, [(s, render(s)) for s in ico_sizes])
+    write_ico(ico_path)
     print(f"  {ico_path}")
 
     master = os.path.join(root, "tool/app_icon_master.png")
