@@ -348,66 +348,99 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             },
       itemBuilder: (context, index) {
         final cue = cues[index];
-        final selected = control.selectedCueId == cue.id;
-        final activePlay = playing.values
-            .where((p) => p.sourceId == cue.id && !p.isStopping)
-            .firstOrNull;
-        // 降级的控制项不占序号，其余保持连续编号。
-        final demotedBefore = cues.take(index).where((c) => c.demoted).length;
-        final displayNumber = index + 1 - demotedBefore;
-        final audioCues = cues.where((c) => c.controlAction == null).toList();
-        final targetIdx = audioCues.indexWhere(
-          (c) => c.id == cue.controlTargetCueId,
-        );
-        final controlTargetNumber = cue.controlAction != null && targetIdx >= 0
-            ? audioCues.take(targetIdx).where((c) => !c.demoted).length + 1
-            : null;
-        Widget tile = Padding(
-          padding: EdgeInsets.only(bottom: 10),
-          child: _CueTile(
-            cue: cue,
-            index: index,
-            number: displayNumber,
-            selected: selected,
-            activePlay: activePlay,
-            waitingForThis: control.waitingCueId == cue.id,
-            waitingPhase: control.waitingPhase,
-            hideTimes: hideTimes,
-            controlTargetNumber: controlTargetNumber,
-            locked: locked,
-            onTap: () => ref
-                .read(cueControllerProvider.notifier)
-                .select(selected ? '' : cue.id),
-            onEdit: () => cue.controlAction != null
-                ? _editControlCue(cue)
-                : _openInspectorFor(cue),
-            onToggleAutoNext: () => ref
-                .read(showProvider.notifier)
-                .updateCue(
-                  cue.copyWith(
-                    autoNext: !cue.autoNext,
-                    playNextTogether: false,
+        Widget buildTile(Cue tileCue, int tileIndex, {bool compact = false}) {
+          final selected = control.selectedCueId == tileCue.id;
+          final activePlay = playing.values
+              .where((p) => p.sourceId == tileCue.id && !p.isStopping)
+              .firstOrNull;
+          // 降级的控制项不占序号，其余保持连续编号。
+          final demotedBefore = cues
+              .take(tileIndex)
+              .where((c) => c.demoted)
+              .length;
+          final displayNumber = tileIndex + 1 - demotedBefore;
+          final audioCues = cues.where((c) => c.controlAction == null).toList();
+          final targetIdx = audioCues.indexWhere(
+            (c) => c.id == tileCue.controlTargetCueId,
+          );
+          final controlTargetNumber =
+              tileCue.controlAction != null && targetIdx >= 0
+              ? audioCues.take(targetIdx).where((c) => !c.demoted).length + 1
+              : null;
+          return Padding(
+            padding: EdgeInsets.only(bottom: compact ? 2.0 : 10.0),
+            child: _CueTile(
+              cue: tileCue,
+              index: tileIndex,
+              number: displayNumber,
+              selected: selected,
+              activePlay: activePlay,
+              waitingForThis: control.waitingCueId == tileCue.id,
+              waitingPhase: control.waitingPhase,
+              hideTimes: hideTimes,
+              controlTargetNumber: controlTargetNumber,
+              locked: locked,
+              merged: compact,
+              onTap: () => ref
+                  .read(cueControllerProvider.notifier)
+                  .select(selected ? '' : tileCue.id),
+              onEdit: () => tileCue.controlAction != null
+                  ? _editControlCue(tileCue)
+                  : _openInspectorFor(tileCue),
+              onToggleAutoNext: () => ref
+                  .read(showProvider.notifier)
+                  .updateCue(
+                    tileCue.copyWith(
+                      autoNext: !tileCue.autoNext,
+                      playNextTogether: false,
+                    ),
                   ),
-                ),
-            onToggleTogether: () => ref
-                .read(showProvider.notifier)
-                .updateCue(
-                  cue.copyWith(
-                    playNextTogether: !cue.playNextTogether,
-                    autoNext: false,
+              onToggleTogether: () => ref
+                  .read(showProvider.notifier)
+                  .updateCue(
+                    tileCue.copyWith(
+                      playNextTogether: !tileCue.playNextTogether,
+                      autoNext: false,
+                    ),
                   ),
-                ),
-            onDelete: () => ref.read(showProvider.notifier).removeCue(cue.id),
-            onCopy: () {
-              copyCueToClipboard(ref, cue);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('已复制 Cue「${cue.name}」')));
-            },
-            onEditWait: (c, isPre) => _editWaitTime(c, isPre),
-            onEditFade: () => _editFadeTime(cue),
-          ),
-        );
+              onDelete: () =>
+                  ref.read(showProvider.notifier).removeCue(tileCue.id),
+              onCopy: () {
+                copyCueToClipboard(ref, tileCue);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已复制 Cue「${tileCue.name}」')),
+                );
+              },
+              onEditWait: (c, isPre) => _editWaitTime(c, isPre),
+              onEditFade: () => _editFadeTime(tileCue),
+            ),
+          );
+        }
+
+        // 锁定模式下，把连续降级的子级合并成一个紧凑分组，去掉各自边框。
+        if (locked && cue.demoted) {
+          if (index > 0 && cues[index - 1].demoted) {
+            return KeyedSubtree(
+              key: ValueKey(cue.id),
+              child: const SizedBox.shrink(),
+            );
+          }
+          final run = <Cue>[cue];
+          for (var i = index + 1; i < cues.length && cues[i].demoted; i++) {
+            run.add(cues[i]);
+          }
+          return KeyedSubtree(
+            key: ValueKey('group_${run.first.id}'),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 28, bottom: 10),
+              child: _DemotedGroup(
+                cues: run,
+                buildTile: (c, i) => buildTile(c, index + i, compact: true),
+              ),
+            ),
+          );
+        }
+        Widget tile = buildTile(cue, index);
         if (cue.demoted) {
           // 降级项作为上一项的从属子项：缩进显示。
           tile = Padding(padding: const EdgeInsets.only(left: 28), child: tile);
@@ -1224,6 +1257,29 @@ class _TimeText extends StatelessWidget {
   }
 }
 
+/// 锁定模式下连续降级子级的紧凑分组：去掉各自边框，合成一个浅色块。
+class _DemotedGroup extends StatelessWidget {
+  const _DemotedGroup({required this.cues, required this.buildTile});
+
+  final List<Cue> cues;
+  final Widget Function(Cue cue, int index) buildTile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: CueBoxColors.surface.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [for (var i = 0; i < cues.length; i++) buildTile(cues[i], i)],
+      ),
+    );
+  }
+}
+
 class _CueTile extends StatefulWidget {
   const _CueTile({
     required this.cue,
@@ -1236,6 +1292,7 @@ class _CueTile extends StatefulWidget {
     required this.hideTimes,
     required this.controlTargetNumber,
     required this.locked,
+    required this.merged,
     required this.onTap,
     required this.onEdit,
     required this.onToggleAutoNext,
@@ -1256,6 +1313,7 @@ class _CueTile extends StatefulWidget {
   final bool hideTimes;
   final int? controlTargetNumber;
   final bool locked;
+  final bool merged;
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onToggleAutoNext;
@@ -1293,41 +1351,45 @@ class _CueTileState extends State<_CueTile> {
     final onCopy = widget.onCopy;
     final onEditWait = widget.onEditWait;
     final onEditFade = widget.onEditFade;
+    final merged = widget.merged;
+    final verticalPad = merged ? 1.0 : (cue.demoted ? 3.0 : 12.0);
     return AnimatedContainer(
       duration: Duration(milliseconds: 200),
       curve: Curves.easeOut,
-      decoration: BoxDecoration(
-        color: selected
-            ? CueBoxColors.primary.withValues(alpha: 0.08)
-            : CueBoxColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: selected ? CueBoxColors.primary : CueBoxColors.border,
-          width: selected ? 1.2 : 1,
-        ),
-        boxShadow: selected
-            ? [
-                BoxShadow(
-                  color: CueBoxColors.primary.withValues(alpha: 0.10),
-                  blurRadius: 24,
-                  spreadRadius: -2,
-                ),
-              ]
-            : null,
-      ),
+      decoration: merged
+          ? BoxDecoration(
+              color: selected
+                  ? CueBoxColors.primary.withValues(alpha: 0.10)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            )
+          : BoxDecoration(
+              color: selected
+                  ? CueBoxColors.primary.withValues(alpha: 0.08)
+                  : CueBoxColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: selected ? CueBoxColors.primary : CueBoxColors.border,
+                width: selected ? 1.2 : 1,
+              ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: CueBoxColors.primary.withValues(alpha: 0.10),
+                        blurRadius: 24,
+                        spreadRadius: -2,
+                      ),
+                    ]
+                  : null,
+            ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(merged ? 10.0 : 18.0),
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(merged ? 10.0 : 18.0),
           onTap: onTap,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              12,
-              cue.demoted ? 3 : 12,
-              6,
-              cue.demoted ? 3 : 12,
-            ),
+            padding: EdgeInsets.fromLTRB(12, verticalPad, 6, verticalPad),
             child: Row(
               children: [
                 _IndexBadge(
