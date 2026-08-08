@@ -10,6 +10,8 @@ class Cue {
     this.note = '',
     this.startMs = 0,
     this.endMs = 0,
+    this.preWaitMs = 0,
+    this.postWaitMs = 0,
     this.loop = false,
     this.volume = 1.0,
     this.fadeInMs = 20,
@@ -26,6 +28,12 @@ class Cue {
 
   /// 播放终点（毫秒），0 表示文件结尾。
   int endMs;
+
+  /// 开始前等待（毫秒）。
+  int preWaitMs;
+
+  /// 结束后等待（毫秒）。
+  int postWaitMs;
   bool loop;
   double volume;
   int fadeInMs;
@@ -39,6 +47,8 @@ class Cue {
     String? note,
     int? startMs,
     int? endMs,
+    int? preWaitMs,
+    int? postWaitMs,
     bool? loop,
     double? volume,
     int? fadeInMs,
@@ -51,6 +61,8 @@ class Cue {
       note: note ?? this.note,
       startMs: startMs ?? this.startMs,
       endMs: endMs ?? this.endMs,
+      preWaitMs: preWaitMs ?? this.preWaitMs,
+      postWaitMs: postWaitMs ?? this.postWaitMs,
       loop: loop ?? this.loop,
       volume: volume ?? this.volume,
       fadeInMs: fadeInMs ?? this.fadeInMs,
@@ -65,6 +77,8 @@ class Cue {
     'note': note,
     'startMs': startMs,
     'endMs': endMs,
+    'preWaitMs': preWaitMs,
+    'postWaitMs': postWaitMs,
     'loop': loop,
     'volume': volume,
     'fadeInMs': fadeInMs,
@@ -79,6 +93,8 @@ class Cue {
       note: json['note'] as String? ?? '',
       startMs: (json['startMs'] as num?)?.toInt() ?? 0,
       endMs: (json['endMs'] as num?)?.toInt() ?? 0,
+      preWaitMs: (json['preWaitMs'] as num?)?.toInt() ?? 0,
+      postWaitMs: (json['postWaitMs'] as num?)?.toInt() ?? 0,
       loop: json['loop'] as bool? ?? false,
       volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
       fadeInMs: (json['fadeInMs'] as num?)?.toInt() ?? 20,

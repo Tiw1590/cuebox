@@ -45,7 +45,7 @@ class CueController extends Notifier<CueControlState> {
   @override
   CueControlState build() {
     final engine = ref.read(playbackEngineProvider.notifier);
-    final sub = engine.onCompleted.listen((playId) {
+    final sub = engine.onCompleted.listen((playId) async {
       final cueId = _playToCue.remove(playId);
       if (cueId == null) return;
       if (!state.listLoop) return;
@@ -54,7 +54,14 @@ class CueController extends Notifier<CueControlState> {
       if (cues.isEmpty) return;
       final idx = cues.indexWhere((c) => c.id == cueId);
       if (idx < 0) return;
+      final cue = cues[idx];
       final next = cues[(idx + 1) % cues.length];
+      // 结束后等待，再触发下一条。
+      if (cue.postWaitMs > 0) {
+        await Future<void>.delayed(Duration(milliseconds: cue.postWaitMs));
+      }
+      // 等待期间可能被停止或切换，重查一次循环状态。
+      if (!state.listLoop) return;
       _trigger(next);
     });
     ref.onDispose(sub.cancel);
@@ -90,6 +97,10 @@ class CueController extends Notifier<CueControlState> {
   }
 
   Future<void> _trigger(Cue cue) async {
+    // 开始前等待。
+    if (cue.preWaitMs > 0) {
+      await Future<void>.delayed(Duration(milliseconds: cue.preWaitMs));
+    }
     final engine = ref.read(playbackEngineProvider.notifier);
     final playId = await engine.trigger(
       uri: cue.uri,

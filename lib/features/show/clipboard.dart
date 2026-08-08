@@ -20,6 +20,8 @@ class ClipboardItem {
     required this.loop,
     required this.startMs,
     required this.endMs,
+    required this.preWaitMs,
+    required this.postWaitMs,
     this.solo = true,
     this.shortcutKeyId,
     this.shortcutLabel,
@@ -35,6 +37,8 @@ class ClipboardItem {
   final bool loop;
   final int startMs;
   final int endMs;
+  final int preWaitMs;
+  final int postWaitMs;
   final bool solo;
   final int? shortcutKeyId;
   final String? shortcutLabel;
@@ -51,6 +55,8 @@ class ClipboardItem {
       loop: cue.loop,
       startMs: cue.startMs,
       endMs: cue.endMs,
+      preWaitMs: cue.preWaitMs,
+      postWaitMs: cue.postWaitMs,
     );
   }
 
@@ -66,6 +72,8 @@ class ClipboardItem {
       loop: slot.loop,
       startMs: slot.startMs,
       endMs: slot.endMs,
+      preWaitMs: 0,
+      postWaitMs: 0,
       solo: slot.solo,
       shortcutKeyId: slot.shortcutKeyId,
       shortcutLabel: slot.shortcutLabel,
@@ -88,9 +96,7 @@ Future<void> pasteClipboard(WidgetRef ref, BuildContext context) async {
   final item = ref.read(clipboardProvider);
   final messenger = ScaffoldMessenger.of(context);
   if (item == null) {
-    messenger.showSnackBar(
-      SnackBar(content: Text('剪贴板为空，先复制一个 Cue 或 Card')),
-    );
+    messenger.showSnackBar(SnackBar(content: Text('剪贴板为空，先复制一个 Cue 或 Card')));
     return;
   }
   final lib = ref.read(showProvider).valueOrNull;
@@ -110,6 +116,8 @@ Future<void> pasteClipboard(WidgetRef ref, BuildContext context) async {
           loop: item.loop,
           startMs: item.startMs,
           endMs: item.endMs,
+          preWaitMs: item.preWaitMs,
+          postWaitMs: item.postWaitMs,
         );
     messenger.showSnackBar(SnackBar(content: Text('已粘贴 Cue「${item.name}」')));
   } else if (show.kind == ShowKind.cart && item.kind == ClipboardKind.card) {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/format.dart';
+import '../../core/platform/waveform_cache.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/audio_slot_editor.dart';
 import '../../core/widgets/empty_state.dart';
@@ -38,6 +40,8 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             note: r.note,
             startMs: r.startMs,
             endMs: r.endMs,
+            preWaitMs: r.preWaitMs,
+            postWaitMs: r.postWaitMs,
             volume: r.volume,
             fadeInMs: r.fadeInMs,
             fadeOutMs: r.fadeOutMs,
@@ -164,6 +168,9 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             waveformUri: selected.uri,
             initialStartMs: selected.startMs,
             initialEndMs: selected.endMs,
+            showWait: true,
+            initialPreWaitMs: selected.preWaitMs,
+            initialPostWaitMs: selected.postWaitMs,
             onCancel: () => setState(() => _inspectorOpen = false),
             onSave: (r) => _savePanel(selected, r),
           )
@@ -181,9 +188,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
                 width: 330,
                 decoration: BoxDecoration(
                   color: CueBoxColors.surface.withValues(alpha: 0.45),
-                  border: Border(
-                    left: BorderSide(color: CueBoxColors.border),
-                  ),
+                  border: Border(left: BorderSide(color: CueBoxColors.border)),
                 ),
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -201,9 +206,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
                 height: 360,
                 decoration: BoxDecoration(
                   color: Color(0xF20D131B),
-                  border: Border(
-                    top: BorderSide(color: CueBoxColors.border),
-                  ),
+                  border: Border(top: BorderSide(color: CueBoxColors.border)),
                 ),
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(16, 10, 16, 16),
@@ -394,7 +397,32 @@ class _LoopChip extends StatelessWidget {
   }
 }
 
-class _CueTile extends StatelessWidget {
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({
+    required this.icon,
+    required this.text,
+    this.highlight = false,
+  });
+
+  final IconData icon;
+  final String text;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = highlight ? CueBoxColors.primary : CueBoxColors.textFaint;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 3),
+        Text(text, style: TextStyle(fontSize: 11.5, color: color)),
+      ],
+    );
+  }
+}
+
+class _CueTile extends StatefulWidget {
   const _CueTile({
     required this.cue,
     required this.index,
@@ -422,7 +450,25 @@ class _CueTile extends StatelessWidget {
   final VoidCallback onCopy;
 
   @override
+  State<_CueTile> createState() => _CueTileState();
+}
+
+class _CueTileState extends State<_CueTile> {
+  late final Future<int?> _durationFuture = loadDurationMs(widget.cue.uri);
+
+  @override
   Widget build(BuildContext context) {
+    final cue = widget.cue;
+    final index = widget.index;
+    final selected = widget.selected;
+    final isPlaying = widget.isPlaying;
+    final locked = widget.locked;
+    final onTap = widget.onTap;
+    final onEdit = widget.onEdit;
+    final onMoveUp = widget.onMoveUp;
+    final onMoveDown = widget.onMoveDown;
+    final onDelete = widget.onDelete;
+    final onCopy = widget.onCopy;
     return AnimatedContainer(
       duration: Duration(milliseconds: 200),
       curve: Curves.easeOut,
@@ -470,34 +516,38 @@ class _CueTile extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (cue.loop) ...[
-                        SizedBox(height: 5),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.repeat,
-                              size: 12,
-                              color: CueBoxColors.primary,
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 4,
+                        children: [
+                          _MetaChip(
+                            icon: Icons.hourglass_bottom_outlined,
+                            text: '前 ${fmtMmSsCc(cue.preWaitMs)}',
+                          ),
+                          FutureBuilder<int?>(
+                            future: _durationFuture,
+                            builder: (_, snap) => _MetaChip(
+                              icon: Icons.timer_outlined,
+                              text: '时长 ${fmtMmSsCc(snap.data ?? 0)}',
                             ),
-                            SizedBox(width: 3),
-                            Text(
-                              '循环',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: CueBoxColors.primary,
-                              ),
+                          ),
+                          _MetaChip(
+                            icon: Icons.hourglass_top_outlined,
+                            text: '后 ${fmtMmSsCc(cue.postWaitMs)}',
+                          ),
+                          if (cue.loop)
+                            const _MetaChip(
+                              icon: Icons.repeat,
+                              text: '循环',
+                              highlight: true,
                             ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ],
                   ),
                 ),
-                if (isPlaying) ...[
-                  PlayingIndicator(),
-                  SizedBox(width: 8),
-                ],
+                if (isPlaying) ...[PlayingIndicator(), SizedBox(width: 8)],
                 if (!locked)
                   PopupMenuButton<String>(
                     tooltip: 'Cue 操作',
@@ -523,10 +573,7 @@ class _CueTile extends StatelessWidget {
                       PopupMenuItem(
                         value: 'up',
                         enabled: onMoveUp != null,
-                        child: _MenuRow(
-                          icon: Icons.arrow_upward,
-                          label: '上移',
-                        ),
+                        child: _MenuRow(icon: Icons.arrow_upward, label: '上移'),
                       ),
                       PopupMenuItem(
                         value: 'down',
@@ -587,9 +634,7 @@ class _IndexBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w800,
-          color: selected
-              ? Color(0xFF002A36)
-              : CueBoxColors.textSecondary,
+          color: selected ? Color(0xFF002A36) : CueBoxColors.textSecondary,
         ),
       ),
     );
@@ -689,10 +734,7 @@ class _CueHeader extends StatelessWidget {
                   nameText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
                 ),
                 SizedBox(height: 4),
                 Text(
@@ -775,9 +817,7 @@ class _GoButton extends StatelessWidget {
               Icon(
                 Icons.play_arrow_rounded,
                 size: 40,
-                color: enabled
-                    ? Color(0xFF002A36)
-                    : CueBoxColors.textFaint,
+                color: enabled ? Color(0xFF002A36) : CueBoxColors.textFaint,
               ),
               SizedBox(width: 6),
               Text(
@@ -786,9 +826,7 @@ class _GoButton extends StatelessWidget {
                   fontSize: 30,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.5,
-                  color: enabled
-                      ? Color(0xFF002A36)
-                      : CueBoxColors.textFaint,
+                  color: enabled ? Color(0xFF002A36) : CueBoxColors.textFaint,
                 ),
               ),
             ],

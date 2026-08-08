@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import '../platform/audio_uri.dart';
 import '../platform/waveform_cache.dart';
 import '../theme.dart';
+import '../format.dart';
 import 'audio_trim_waveform.dart';
 import 'waveform_fullscreen_page.dart';
 
@@ -22,6 +23,8 @@ class SlotEditResult {
     required this.solo,
     this.startMs = 0,
     this.endMs = 0,
+    this.preWaitMs = 0,
+    this.postWaitMs = 0,
     this.shortcutKeyId,
     this.shortcutLabel,
   });
@@ -35,6 +38,8 @@ class SlotEditResult {
   final bool solo;
   final int startMs;
   final int endMs;
+  final int preWaitMs;
+  final int postWaitMs;
   final int? shortcutKeyId;
   final String? shortcutLabel;
 }
@@ -69,6 +74,9 @@ Future<void> showAudioSlotEditor({
   String? waveformUri,
   int initialStartMs = 0,
   int initialEndMs = 0,
+  bool showWait = false,
+  int initialPreWaitMs = 0,
+  int initialPostWaitMs = 0,
   bool showShortcut = false,
   int? initialShortcutKeyId,
   String? initialShortcutLabel,
@@ -102,6 +110,9 @@ Future<void> showAudioSlotEditor({
         waveformUri: waveformUri,
         initialStartMs: initialStartMs,
         initialEndMs: initialEndMs,
+        showWait: showWait,
+        initialPreWaitMs: initialPreWaitMs,
+        initialPostWaitMs: initialPostWaitMs,
         showShortcut: showShortcut,
         initialShortcutKeyId: initialShortcutKeyId,
         initialShortcutLabel: initialShortcutLabel,
@@ -134,6 +145,9 @@ class AudioSlotEditorPanel extends StatefulWidget {
     this.waveformUri,
     this.initialStartMs = 0,
     this.initialEndMs = 0,
+    this.showWait = false,
+    this.initialPreWaitMs = 0,
+    this.initialPostWaitMs = 0,
     this.showShortcut = false,
     this.initialShortcutKeyId,
     this.initialShortcutLabel,
@@ -155,6 +169,9 @@ class AudioSlotEditorPanel extends StatefulWidget {
   final String? waveformUri;
   final int initialStartMs;
   final int initialEndMs;
+  final bool showWait;
+  final int initialPreWaitMs;
+  final int initialPostWaitMs;
   final bool showShortcut;
   final int? initialShortcutKeyId;
   final String? initialShortcutLabel;
@@ -177,6 +194,8 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
   late bool _solo;
   late int _startMs;
   late int _endMs;
+  late int _preWaitMs;
+  late int _postWaitMs;
   int? _previewStartMs;
   int? _shortcutKeyId;
   String? _shortcutLabel;
@@ -200,6 +219,8 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
     _solo = widget.initialSolo;
     _startMs = widget.initialStartMs;
     _endMs = widget.initialEndMs;
+    _preWaitMs = widget.initialPreWaitMs;
+    _postWaitMs = widget.initialPostWaitMs;
     _shortcutKeyId = widget.initialShortcutKeyId;
     _shortcutLabel = widget.initialShortcutLabel;
     if (widget.waveformUri != null) {
@@ -274,6 +295,8 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
         solo: _solo,
         startMs: _startMs,
         endMs: _endMs,
+        preWaitMs: _preWaitMs,
+        postWaitMs: _postWaitMs,
         shortcutKeyId: _shortcutKeyId,
         shortcutLabel: _shortcutLabel,
       ),
@@ -581,6 +604,26 @@ class _AudioSlotEditorPanelState extends State<AudioSlotEditorPanel> {
             ),
           ],
           SizedBox(height: 8),
+          if (widget.showWait) ...[
+            _SliderRow(
+              label: '前等',
+              valueLabel: fmtMmSsCc(_preWaitMs),
+              value: _preWaitMs.toDouble(),
+              min: 0,
+              max: 30000,
+              divisions: 300,
+              onChanged: (v) => setState(() => _preWaitMs = v.round()),
+            ),
+            _SliderRow(
+              label: '后等',
+              valueLabel: fmtMmSsCc(_postWaitMs),
+              value: _postWaitMs.toDouble(),
+              min: 0,
+              max: 30000,
+              divisions: 300,
+              onChanged: (v) => setState(() => _postWaitMs = v.round()),
+            ),
+          ],
           _SliderRow(
             label: '音量',
             valueLabel: '${(_volume * 100).round()}%',

@@ -87,6 +87,8 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
                   note: c.note,
                   startMs: c.startMs,
                   endMs: c.endMs,
+                  preWaitMs: c.preWaitMs,
+                  postWaitMs: c.postWaitMs,
                   loop: c.loop,
                   volume: c.volume,
                   fadeInMs: c.fadeInMs,
@@ -254,6 +256,8 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
     bool loop = false,
     int startMs = 0,
     int endMs = 0,
+    int preWaitMs = 0,
+    int postWaitMs = 0,
   }) {
     return _mutateShow(
       (show) => show.copyWith(
@@ -270,6 +274,8 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
             loop: loop,
             startMs: startMs,
             endMs: endMs,
+            preWaitMs: preWaitMs,
+            postWaitMs: postWaitMs,
           ),
         ],
       ),
