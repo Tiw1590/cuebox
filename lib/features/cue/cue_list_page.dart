@@ -968,12 +968,17 @@ class _ChildTimeSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Text(
-      '$label $text',
-      style: TextStyle(
-        fontSize: 10.5,
-        color: CueBoxColors.textFaint,
-        fontFeatures: const [FontFeature.tabularFigures()],
+    final content = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        '$label $text',
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          fontSize: 10.5,
+          color: CueBoxColors.textFaint,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
       ),
     );
     final wrapped = onDoubleTap == null
