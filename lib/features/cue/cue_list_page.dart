@@ -50,6 +50,25 @@ class _CueListPageState extends ConsumerState<CueListPage> {
         );
   }
 
+  Future<void> _editWaitTime(Cue cue, bool isPre) async {
+    final ms = await showDialog<int>(
+      context: context,
+      builder: (_) => _WaitTimeDialog(
+        title: isPre ? '开始前等待' : '结束后等待',
+        initialMs: isPre ? cue.preWaitMs : cue.postWaitMs,
+      ),
+    );
+    if (ms == null) return;
+    await ref
+        .read(showProvider.notifier)
+        .updateCue(
+          cue.copyWith(
+            preWaitMs: isPre ? ms : cue.preWaitMs,
+            postWaitMs: isPre ? cue.postWaitMs : ms,
+          ),
+        );
+  }
+
   Future<void> _confirmClearAll() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -270,6 +289,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
                 context,
               ).showSnackBar(SnackBar(content: Text('已复制 Cue「${cue.name}」')));
             },
+            onEditWait: (c, isPre) => _editWaitTime(c, isPre),
           ),
         );
         if (locked) {
@@ -397,27 +417,76 @@ class _LoopChip extends StatelessWidget {
   }
 }
 
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({
-    required this.icon,
-    required this.text,
-    this.highlight = false,
+/// Cue 行右侧的时间信息列：前等待 / 时长 / 后等待。
+class _TimeInfoColumn extends StatelessWidget {
+  const _TimeInfoColumn({
+    required this.preMs,
+    required this.postMs,
+    required this.durationFuture,
+    required this.onEditPre,
+    required this.onEditPost,
   });
 
-  final IconData icon;
-  final String text;
-  final bool highlight;
+  final int preMs;
+  final int postMs;
+  final Future<int?> durationFuture;
+  final VoidCallback onEditPre;
+  final VoidCallback onEditPost;
 
   @override
   Widget build(BuildContext context) {
-    final color = highlight ? CueBoxColors.primary : CueBoxColors.textFaint;
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _TimeRow(label: '前', text: fmtMmSsCc(preMs), onDoubleTap: onEditPre),
+        const SizedBox(height: 4),
+        FutureBuilder<int?>(
+          future: durationFuture,
+          builder: (_, snap) =>
+              _TimeRow(label: '时长', text: fmtMmSsCc(snap.data ?? 0)),
+        ),
+        const SizedBox(height: 4),
+        _TimeRow(label: '后', text: fmtMmSsCc(postMs), onDoubleTap: onEditPost),
+      ],
+    );
+  }
+}
+
+class _TimeRow extends StatelessWidget {
+  const _TimeRow({required this.label, required this.text, this.onDoubleTap});
+
+  final String label;
+  final String text;
+  final VoidCallback? onDoubleTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 3),
-        Text(text, style: TextStyle(fontSize: 11.5, color: color)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10.5, color: CueBoxColors.textFaint),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
       ],
+    );
+    if (onDoubleTap == null) return row;
+    return Tooltip(
+      message: '双击修改',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onDoubleTap: onDoubleTap,
+        child: row,
+      ),
     );
   }
 }
@@ -435,6 +504,7 @@ class _CueTile extends StatefulWidget {
     required this.onMoveDown,
     required this.onDelete,
     required this.onCopy,
+    required this.onEditWait,
   });
 
   final Cue cue;
@@ -448,6 +518,7 @@ class _CueTile extends StatefulWidget {
   final VoidCallback? onMoveDown;
   final VoidCallback onDelete;
   final VoidCallback onCopy;
+  final void Function(Cue cue, bool isPre) onEditWait;
 
   @override
   State<_CueTile> createState() => _CueTileState();
@@ -469,6 +540,7 @@ class _CueTileState extends State<_CueTile> {
     final onMoveDown = widget.onMoveDown;
     final onDelete = widget.onDelete;
     final onCopy = widget.onCopy;
+    final onEditWait = widget.onEditWait;
     return AnimatedContainer(
       duration: Duration(milliseconds: 200),
       curve: Curves.easeOut,
@@ -516,37 +588,39 @@ class _CueTileState extends State<_CueTile> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 4,
-                        children: [
-                          _MetaChip(
-                            icon: Icons.hourglass_bottom_outlined,
-                            text: '前 ${fmtMmSsCc(cue.preWaitMs)}',
-                          ),
-                          FutureBuilder<int?>(
-                            future: _durationFuture,
-                            builder: (_, snap) => _MetaChip(
-                              icon: Icons.timer_outlined,
-                              text: '时长 ${fmtMmSsCc(snap.data ?? 0)}',
+                      if (cue.loop) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.repeat,
+                              size: 12,
+                              color: CueBoxColors.primary,
                             ),
-                          ),
-                          _MetaChip(
-                            icon: Icons.hourglass_top_outlined,
-                            text: '后 ${fmtMmSsCc(cue.postWaitMs)}',
-                          ),
-                          if (cue.loop)
-                            const _MetaChip(
-                              icon: Icons.repeat,
-                              text: '循环',
-                              highlight: true,
+                            SizedBox(width: 3),
+                            Text(
+                              '循环',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: CueBoxColors.primary,
+                              ),
                             ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
+                const SizedBox(width: 10),
+                _TimeInfoColumn(
+                  preMs: cue.preWaitMs,
+                  postMs: cue.postWaitMs,
+                  durationFuture: _durationFuture,
+                  onEditPre: () => onEditWait(cue, true),
+                  onEditPost: () => onEditWait(cue, false),
+                ),
+                const SizedBox(width: 6),
                 if (isPlaying) ...[PlayingIndicator(), SizedBox(width: 8)],
                 if (!locked)
                   PopupMenuButton<String>(
@@ -833,6 +907,96 @@ class _GoButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 双击等待时间后弹出的快速修改框（以秒输入，支持小数）。
+class _WaitTimeDialog extends StatefulWidget {
+  const _WaitTimeDialog({required this.title, required this.initialMs});
+
+  final String title;
+  final int initialMs;
+
+  @override
+  State<_WaitTimeDialog> createState() => _WaitTimeDialogState();
+}
+
+class _WaitTimeDialogState extends State<_WaitTimeDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: (widget.initialMs / 1000).toString(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  int? _parse() {
+    final v = double.tryParse(_controller.text.trim());
+    if (v == null || v < 0) return null;
+    return (v * 1000).round().clamp(0, 60000);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              hintText: '秒，如 1.5',
+              suffixText: 's',
+            ),
+            onSubmitted: (_) {
+              final ms = _parse();
+              if (ms != null) Navigator.of(context).pop(ms);
+            },
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final v in [0.0, 0.5, 1, 2, 3, 5, 10])
+                ActionChip(
+                  label: Text(v == 0 ? '0' : '${v}s'),
+                  onPressed: () {
+                    setState(
+                      () => _controller.text = v == 0 ? '0' : v.toString(),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final ms = _parse();
+            if (ms != null) Navigator.of(context).pop(ms);
+          },
+          child: const Text('确定'),
+        ),
+      ],
     );
   }
 }
