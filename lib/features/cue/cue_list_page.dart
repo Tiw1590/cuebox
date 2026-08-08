@@ -355,6 +355,13 @@ class _CueListPageState extends ConsumerState<CueListPage> {
         // 降级的控制项不占序号，其余保持连续编号。
         final demotedBefore = cues.take(index).where((c) => c.demoted).length;
         final displayNumber = index + 1 - demotedBefore;
+        final audioCues = cues.where((c) => c.controlAction == null).toList();
+        final targetIdx = audioCues.indexWhere(
+          (c) => c.id == cue.controlTargetCueId,
+        );
+        final controlTargetNumber = cue.controlAction != null && targetIdx >= 0
+            ? audioCues.take(targetIdx).where((c) => !c.demoted).length + 1
+            : null;
         Widget tile = Padding(
           padding: EdgeInsets.only(bottom: 10),
           child: _CueTile(
@@ -366,6 +373,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             waitingForThis: control.waitingCueId == cue.id,
             waitingPhase: control.waitingPhase,
             hideTimes: hideTimes,
+            controlTargetNumber: controlTargetNumber,
             locked: locked,
             onTap: () => ref
                 .read(cueControllerProvider.notifier)
@@ -1102,6 +1110,7 @@ class _CueTile extends StatefulWidget {
     required this.waitingForThis,
     required this.waitingPhase,
     required this.hideTimes,
+    required this.controlTargetNumber,
     required this.locked,
     required this.onTap,
     required this.onEdit,
@@ -1121,6 +1130,7 @@ class _CueTile extends StatefulWidget {
   final bool waitingForThis;
   final WaitPhase? waitingPhase;
   final bool hideTimes;
+  final int? controlTargetNumber;
   final bool locked;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -1149,6 +1159,7 @@ class _CueTileState extends State<_CueTile> {
     final waitingForThis = widget.waitingForThis;
     final waitingPhase = widget.waitingPhase;
     final hideTimes = widget.hideTimes;
+    final controlTargetNumber = widget.controlTargetNumber;
     final locked = widget.locked;
     final onTap = widget.onTap;
     final onEdit = widget.onEdit;
@@ -1206,7 +1217,9 @@ class _CueTileState extends State<_CueTile> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        cue.name,
+                        cue.controlAction != null && cue.demoted
+                            ? '${cue.name} → #$controlTargetNumber'
+                            : cue.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1220,6 +1233,26 @@ class _CueTileState extends State<_CueTile> {
                           spacing: 8,
                           runSpacing: 4,
                           children: [
+                            _FlagBadge(
+                              icon: switch (cue.controlAction!) {
+                                ControlAction.play => Icons.play_circle_outline,
+                                ControlAction.pause =>
+                                  Icons.pause_circle_outline,
+                                ControlAction.stop =>
+                                  Icons.stop_circle_outlined,
+                              },
+                              label: '控制 #$controlTargetNumber',
+                              color: switch (cue.controlAction!) {
+                                ControlAction.play => CueBoxColors.primary,
+                                ControlAction.pause => CueBoxColors.amber,
+                                ControlAction.stop => CueBoxColors.danger,
+                              },
+                              tooltip: switch (cue.controlAction!) {
+                                ControlAction.play => '控制播放',
+                                ControlAction.pause => '控制暂停',
+                                ControlAction.stop => '控制停止',
+                              },
+                            ),
                             if (cue.autoNext)
                               _FlagBadge(
                                 icon: Icons.skip_next_rounded,
