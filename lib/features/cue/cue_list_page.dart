@@ -975,7 +975,7 @@ class _ChildTimeSlot extends StatelessWidget {
         maxLines: 1,
         softWrap: false,
         style: TextStyle(
-          fontSize: 10.5,
+          fontSize: 12,
           color: CueBoxColors.textFaint,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
@@ -992,8 +992,8 @@ class _ChildTimeSlot extends StatelessWidget {
             ),
           );
     return SizedBox(
-      width: 52,
-      height: 16,
+      width: 64,
+      height: 18,
       child: Stack(
         alignment: Alignment.centerRight,
         children: [
@@ -1260,7 +1260,7 @@ class _CueTileState extends State<_CueTile> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (cue.demoted && cue.controlAction != null)
+                      if (cue.demoted)
                         Row(
                           children: [
                             Flexible(
@@ -1274,23 +1274,44 @@ class _CueTileState extends State<_CueTile> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            _FlagBadge(
-                              icon: switch (cue.controlAction!) {
-                                ControlAction.play => Icons.play_circle_outline,
-                                ControlAction.pause =>
-                                  Icons.pause_circle_outline,
-                                ControlAction.stop =>
-                                  Icons.stop_circle_outlined,
-                              },
-                              label: '控制 #$controlTargetNumber',
-                              color: switch (cue.controlAction!) {
-                                ControlAction.play => CueBoxColors.primary,
-                                ControlAction.pause => CueBoxColors.amber,
-                                ControlAction.stop => CueBoxColors.danger,
-                              },
-                              tooltip: '控制目标',
-                            ),
+                            if (cue.controlAction != null) ...[
+                              const SizedBox(width: 6),
+                              _FlagBadge(
+                                icon: switch (cue.controlAction!) {
+                                  ControlAction.play =>
+                                    Icons.play_circle_outline,
+                                  ControlAction.pause =>
+                                    Icons.pause_circle_outline,
+                                  ControlAction.stop =>
+                                    Icons.stop_circle_outlined,
+                                },
+                                label: '控制 #$controlTargetNumber',
+                                color: switch (cue.controlAction!) {
+                                  ControlAction.play => CueBoxColors.primary,
+                                  ControlAction.pause => CueBoxColors.amber,
+                                  ControlAction.stop => CueBoxColors.danger,
+                                },
+                                tooltip: '控制目标',
+                              ),
+                            ],
+                            if (cue.autoNext) ...[
+                              const SizedBox(width: 6),
+                              _FlagBadge(
+                                icon: Icons.skip_next_rounded,
+                                label: '接',
+                                color: CueBoxColors.primary,
+                                tooltip: '播完接下一个',
+                              ),
+                            ],
+                            if (cue.playNextTogether) ...[
+                              const SizedBox(width: 6),
+                              _FlagBadge(
+                                icon: Icons.layers_rounded,
+                                label: '同',
+                                color: CueBoxColors.secondary,
+                                tooltip: '同时播下一个',
+                              ),
+                            ],
                           ],
                         )
                       else
