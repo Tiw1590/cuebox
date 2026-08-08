@@ -213,7 +213,7 @@ class PlaybackEngine extends Notifier<Map<String, ActivePlay>> {
       if (fadeIn > Duration.zero) {
         try {
           await p.player.setVolume(0);
-          await p.player.play();
+          unawaited(p.player.play());
           await _fadeTo(p.player, p.baseVolume, fadeIn);
         } catch (_) {}
       } else {

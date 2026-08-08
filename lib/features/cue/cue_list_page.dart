@@ -722,6 +722,9 @@ class _ControlInfoRow extends StatelessWidget {
     required this.onEditPre,
     required this.onEditPost,
     required this.onEditFade,
+    required this.fadeActive,
+    required this.fadeDurationMs,
+    required this.fadeColor,
   });
 
   final int preMs;
@@ -731,6 +734,9 @@ class _ControlInfoRow extends StatelessWidget {
   final VoidCallback onEditPre;
   final VoidCallback onEditPost;
   final VoidCallback onEditFade;
+  final bool fadeActive;
+  final int fadeDurationMs;
+  final Color fadeColor;
 
   @override
   Widget build(BuildContext context) {
@@ -739,10 +745,27 @@ class _ControlInfoRow extends StatelessWidget {
       children: [
         _TimeText(label: '前', text: fmtMmSsCc(preMs), onDoubleTap: onEditPre),
         const SizedBox(width: 12),
-        _TimeText(
-          label: '时长',
-          text: fmtMmSsCc(fadeInMs),
-          onDoubleTap: onEditFade,
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _TimeText(
+              label: '时长',
+              text: fmtMmSsCc(fadeInMs),
+              onDoubleTap: onEditFade,
+            ),
+            const SizedBox(height: 4),
+            if (fadeActive && fadeDurationMs > 0)
+              TweenAnimationBuilder<double>(
+                key: ValueKey('fade$fadeActive'),
+                tween: Tween(begin: 0, end: 1),
+                duration: Duration(milliseconds: fadeDurationMs),
+                builder: (_, value, _) =>
+                    _MiniBar(value: value, color: fadeColor),
+              )
+            else
+              const SizedBox(height: 7),
+          ],
         ),
         const SizedBox(width: 12),
         _TimeText(label: '后', text: fmtMmSsCc(postMs), onDoubleTap: onEditPost),
@@ -1100,6 +1123,15 @@ class _CueTileState extends State<_CueTile> {
                                 onEditPre: () => onEditWait(cue, true),
                                 onEditPost: () => onEditWait(cue, false),
                                 onEditFade: onEditFade,
+                                fadeActive:
+                                    waitingForThis &&
+                                    waitingPhase == WaitPhase.fade,
+                                fadeDurationMs: cue.fadeInMs,
+                                fadeColor: switch (cue.controlAction!) {
+                                  ControlAction.play => CueBoxColors.primary,
+                                  ControlAction.pause => CueBoxColors.amber,
+                                  ControlAction.stop => CueBoxColors.danger,
+                                },
                               )
                             : Row(
                                 mainAxisSize: MainAxisSize.min,

@@ -4,7 +4,7 @@ import '../playback/playback_engine.dart';
 import '../show/show_models.dart';
 import '../show/show_providers.dart';
 
-enum WaitPhase { pre, post }
+enum WaitPhase { pre, post, fade }
 
 class CueControlState {
   CueControlState({
@@ -307,9 +307,13 @@ class CueController extends Notifier<CueControlState> {
     switch (cue.controlAction!) {
       case ControlAction.play:
         if (engine.isPlayingSource(target.id)) {
-          await engine.resumeSource(
-            target.id,
-            fadeIn: Duration(milliseconds: cue.fadeInMs),
+          await _runFade(
+            cue,
+            cue.fadeInMs,
+            () => engine.resumeSource(
+              target.id,
+              fadeIn: Duration(milliseconds: cue.fadeInMs),
+            ),
           );
         } else {
           final volume = target.followGlobal
@@ -318,30 +322,54 @@ class CueController extends Notifier<CueControlState> {
           final loop = target.followGlobal
               ? (show?.defaultLoop ?? false)
               : target.loop;
-          await engine.trigger(
-            uri: target.uri,
-            label: target.name,
-            sourceId: target.id,
-            startMs: target.startMs,
-            endMs: target.endMs,
-            loop: loop,
-            volume: volume,
-            fadeIn: Duration(milliseconds: cue.fadeInMs),
-            fadeOut: Duration(milliseconds: cue.fadeOutMs),
-            stopOthers: false,
+          await _runFade(
+            cue,
+            cue.fadeInMs,
+            () => engine.trigger(
+              uri: target.uri,
+              label: target.name,
+              sourceId: target.id,
+              startMs: target.startMs,
+              endMs: target.endMs,
+              loop: loop,
+              volume: volume,
+              fadeIn: Duration(milliseconds: cue.fadeInMs),
+              fadeOut: Duration(milliseconds: cue.fadeOutMs),
+              stopOthers: false,
+            ),
           );
         }
       case ControlAction.pause:
-        await engine.pauseSource(
-          target.id,
-          fadeOut: Duration(milliseconds: cue.fadeOutMs),
+        await _runFade(
+          cue,
+          cue.fadeOutMs,
+          () => engine.pauseSource(
+            target.id,
+            fadeOut: Duration(milliseconds: cue.fadeOutMs),
+          ),
         );
       case ControlAction.stop:
-        await engine.stopSource(
-          target.id,
-          fadeOut: Duration(milliseconds: cue.fadeOutMs),
+        await _runFade(
+          cue,
+          cue.fadeOutMs,
+          () => engine.stopSource(
+            target.id,
+            fadeOut: Duration(milliseconds: cue.fadeOutMs),
+          ),
         );
     }
+  }
+
+  /// 淡变期间标记进度（时长进度条用）。
+  Future<void> _runFade(Cue cue, int ms, Future<void> Function() op) async {
+    if (ms > 0) {
+      state = state.copyWith(
+        waitingCueId: cue.id,
+        waitingPhase: WaitPhase.fade,
+      );
+    }
+    await op();
+    state = state.copyWith(waitingCueId: null, waitingPhase: null);
   }
 
   void toggleListLoop() {
