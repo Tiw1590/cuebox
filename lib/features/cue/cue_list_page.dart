@@ -694,36 +694,41 @@ class _WaitSlot extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        SizedBox(
-          width: 64,
-          height: 16,
-          child: Stack(
-            alignment: Alignment.centerRight,
-            children: [
-              _TimeText(label: label, text: text, onDoubleTap: onDoubleTap),
-              if (active && durationMs > 0)
-                Positioned.fill(
-                  child: TweenAnimationBuilder<double>(
-                    key: ValueKey('$label$active'),
-                    tween: Tween(begin: 0, end: 1),
-                    duration: Duration(milliseconds: durationMs),
-                    builder: (_, value, _) => ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: value,
-                        minHeight: 16,
-                        backgroundColor: color.withValues(alpha: 0.10),
-                        valueColor: AlwaysStoppedAnimation(
-                          color.withValues(alpha: 0.30),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        _TimeText(label: label, text: text, onDoubleTap: onDoubleTap),
+        const SizedBox(height: 4),
+        if (active && durationMs > 0)
+          TweenAnimationBuilder<double>(
+            key: ValueKey('$label$active'),
+            tween: Tween(begin: 0, end: 1),
+            duration: Duration(milliseconds: durationMs),
+            builder: (_, value, _) => _MiniBar(value: value, color: color),
+          )
+        else
+          const SizedBox(height: 7),
       ],
+    );
+  }
+}
+
+class _MiniBar extends StatelessWidget {
+  const _MiniBar({required this.value, required this.color});
+
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 64,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(99),
+        child: LinearProgressIndicator(
+          value: value,
+          minHeight: 3,
+          backgroundColor: CueBoxColors.surfacePressed,
+          valueColor: AlwaysStoppedAnimation(color),
+        ),
+      ),
     );
   }
 }
@@ -803,64 +808,55 @@ class _ControlInfoRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 64,
-          height: 16,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: _TimeText(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _TimeText(
               label: '前',
               text: fmtMmSsCc(preMs),
               onDoubleTap: onEditPre,
             ),
-          ),
+            const SizedBox(height: 4),
+            const SizedBox(height: 7),
+          ],
         ),
         const SizedBox(width: 12),
-        SizedBox(
-          width: 64,
-          height: 16,
-          child: Stack(
-            alignment: Alignment.centerRight,
-            children: [
-              _TimeText(
-                label: '时长',
-                text: fmtMmSsCc(fadeInMs),
-                onDoubleTap: onEditFade,
-              ),
-              if (fadeActive && fadeDurationMs > 0)
-                Positioned.fill(
-                  child: TweenAnimationBuilder<double>(
-                    key: ValueKey('fade$fadeActive'),
-                    tween: Tween(begin: 0, end: 1),
-                    duration: Duration(milliseconds: fadeDurationMs),
-                    builder: (_, value, _) => ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: value,
-                        minHeight: 16,
-                        backgroundColor: fadeColor.withValues(alpha: 0.10),
-                        valueColor: AlwaysStoppedAnimation(
-                          fadeColor.withValues(alpha: 0.30),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _TimeText(
+              label: '时长',
+              text: fmtMmSsCc(fadeInMs),
+              onDoubleTap: onEditFade,
+            ),
+            const SizedBox(height: 4),
+            if (fadeActive && fadeDurationMs > 0)
+              TweenAnimationBuilder<double>(
+                key: ValueKey('fade$fadeActive'),
+                tween: Tween(begin: 0, end: 1),
+                duration: Duration(milliseconds: fadeDurationMs),
+                builder: (_, value, _) =>
+                    _MiniBar(value: value, color: fadeColor),
+              )
+            else
+              const SizedBox(height: 7),
+          ],
         ),
         const SizedBox(width: 12),
-        SizedBox(
-          width: 64,
-          height: 16,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: _TimeText(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _TimeText(
               label: '后',
               text: fmtMmSsCc(postMs),
               onDoubleTap: onEditPost,
             ),
-          ),
+            const SizedBox(height: 4),
+            const SizedBox(height: 7),
+          ],
         ),
       ],
     );
@@ -872,6 +868,8 @@ class _CompactChildTimes extends StatelessWidget {
   const _CompactChildTimes({
     required this.cue,
     required this.durationFuture,
+    required this.waitingForThis,
+    required this.waitingPhase,
     required this.onEditPre,
     required this.onEditPost,
     required this.onEditFade,
@@ -879,6 +877,8 @@ class _CompactChildTimes extends StatelessWidget {
 
   final Cue cue;
   final Future<int?> durationFuture;
+  final bool waitingForThis;
+  final WaitPhase? waitingPhase;
   final VoidCallback onEditPre;
   final VoidCallback onEditPost;
   final VoidCallback onEditFade;
@@ -886,34 +886,53 @@ class _CompactChildTimes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isControl = cue.controlAction != null;
-    final duration = isControl
-        ? Future<int?>.value(cue.fadeInMs)
-        : durationFuture;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _CompactTime(
+        _ChildTimeSlot(
           label: '前',
           text: fmtMmSsCc(cue.preWaitMs),
+          active: waitingForThis && waitingPhase == WaitPhase.pre,
+          durationMs: cue.preWaitMs,
+          color: CueBoxColors.amber,
           onDoubleTap: onEditPre,
         ),
-        const SizedBox(width: 8),
-        FutureBuilder<int?>(
-          future: duration,
-          builder: (_, snap) {
-            final total = snap.data ?? 0;
-            final trimmed = isControl ? cue.fadeInMs : _trimmed(total);
-            return _CompactTime(
-              label: '时长',
-              text: fmtMmSsCc(trimmed),
-              onDoubleTap: isControl ? onEditFade : null,
-            );
-          },
-        ),
-        const SizedBox(width: 8),
-        _CompactTime(
+        const SizedBox(width: 6),
+        if (isControl)
+          _ChildTimeSlot(
+            label: '时长',
+            text: fmtMmSsCc(cue.fadeInMs),
+            active: waitingForThis && waitingPhase == WaitPhase.fade,
+            durationMs: cue.fadeInMs,
+            color: switch (cue.controlAction!) {
+              ControlAction.play => CueBoxColors.primary,
+              ControlAction.pause => CueBoxColors.amber,
+              ControlAction.stop => CueBoxColors.danger,
+            },
+            onDoubleTap: onEditFade,
+          )
+        else
+          FutureBuilder<int?>(
+            future: durationFuture,
+            builder: (_, snap) {
+              final total = snap.data ?? 0;
+              final trimmed = _trimmed(total);
+              return _ChildTimeSlot(
+                label: '时长',
+                text: fmtMmSsCc(trimmed),
+                active: false,
+                durationMs: 0,
+                color: CueBoxColors.primary,
+              );
+            },
+          ),
+        const SizedBox(width: 6),
+        _ChildTimeSlot(
           label: '后',
           text: fmtMmSsCc(cue.postWaitMs),
+          active: waitingForThis && waitingPhase == WaitPhase.post,
+          durationMs: cue.postWaitMs,
+          color: CueBoxColors.secondary,
           onDoubleTap: onEditPost,
         ),
       ],
@@ -930,20 +949,26 @@ class _CompactChildTimes extends StatelessWidget {
   }
 }
 
-class _CompactTime extends StatelessWidget {
-  const _CompactTime({
+class _ChildTimeSlot extends StatelessWidget {
+  const _ChildTimeSlot({
     required this.label,
     required this.text,
+    required this.active,
+    required this.durationMs,
+    required this.color,
     this.onDoubleTap,
   });
 
   final String label;
   final String text;
+  final bool active;
+  final int durationMs;
+  final Color color;
   final VoidCallback? onDoubleTap;
 
   @override
   Widget build(BuildContext context) {
-    final row = Text(
+    final content = Text(
       '$label $text',
       style: TextStyle(
         fontSize: 10.5,
@@ -951,13 +976,43 @@ class _CompactTime extends StatelessWidget {
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
-    if (onDoubleTap == null) return row;
-    return Tooltip(
-      message: '双击修改',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onDoubleTap: onDoubleTap,
-        child: row,
+    final wrapped = onDoubleTap == null
+        ? content
+        : Tooltip(
+            message: '双击修改',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onDoubleTap: onDoubleTap,
+              child: content,
+            ),
+          );
+    return SizedBox(
+      width: 52,
+      height: 16,
+      child: Stack(
+        alignment: Alignment.centerRight,
+        children: [
+          wrapped,
+          if (active && durationMs > 0)
+            Positioned.fill(
+              child: TweenAnimationBuilder<double>(
+                key: ValueKey('$label$active'),
+                tween: Tween(begin: 0, end: 1),
+                duration: Duration(milliseconds: durationMs),
+                builder: (_, value, _) => ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: value,
+                    minHeight: 16,
+                    backgroundColor: color.withValues(alpha: 0.10),
+                    valueColor: AlwaysStoppedAnimation(
+                      color.withValues(alpha: 0.30),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -992,34 +1047,18 @@ class _DurationSlot extends StatelessWidget {
               final progress = (dur != null && dur.inMilliseconds > 0)
                   ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
                   : 0.0;
-              return SizedBox(
-                width: 64,
-                height: 16,
-                child: Stack(
-                  alignment: Alignment.centerRight,
-                  children: [
-                    _TimeText(
-                      label: '时长',
-                      text: fmtMmSsCc(pos.inMilliseconds),
-                      color: CueBoxColors.primary,
-                    ),
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 16,
-                          backgroundColor: CueBoxColors.primary.withValues(
-                            alpha: 0.10,
-                          ),
-                          valueColor: AlwaysStoppedAnimation(
-                            CueBoxColors.primary.withValues(alpha: 0.30),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _TimeText(
+                    label: '时长',
+                    text: fmtMmSsCc(pos.inMilliseconds),
+                    color: CueBoxColors.primary,
+                  ),
+                  const SizedBox(height: 4),
+                  _MiniBar(value: progress, color: CueBoxColors.primary),
+                ],
               );
             },
           );
@@ -1216,17 +1255,49 @@ class _CueTileState extends State<_CueTile> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        cue.controlAction != null && cue.demoted
-                            ? '${cue.name} → #$controlTargetNumber'
-                            : cue.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: cue.demoted ? 12 : 15,
-                          fontWeight: FontWeight.w600,
+                      if (cue.demoted && cue.controlAction != null)
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                cue.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            _FlagBadge(
+                              icon: switch (cue.controlAction!) {
+                                ControlAction.play => Icons.play_circle_outline,
+                                ControlAction.pause =>
+                                  Icons.pause_circle_outline,
+                                ControlAction.stop =>
+                                  Icons.stop_circle_outlined,
+                              },
+                              label: '控制 #$controlTargetNumber',
+                              color: switch (cue.controlAction!) {
+                                ControlAction.play => CueBoxColors.primary,
+                                ControlAction.pause => CueBoxColors.amber,
+                                ControlAction.stop => CueBoxColors.danger,
+                              },
+                              tooltip: '控制目标',
+                            ),
+                          ],
+                        )
+                      else
+                        Text(
+                          cue.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: cue.demoted ? 12 : 15,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
                       if (!cue.demoted && cue.controlAction != null) ...[
                         const SizedBox(height: 5),
                         Wrap(
@@ -1314,6 +1385,8 @@ class _CueTileState extends State<_CueTile> {
                           ? _CompactChildTimes(
                               cue: cue,
                               durationFuture: _durationFuture,
+                              waitingForThis: waitingForThis,
+                              waitingPhase: waitingPhase,
                               onEditPre: () => onEditWait(cue, true),
                               onEditPost: () => onEditWait(cue, false),
                               onEditFade: onEditFade,
