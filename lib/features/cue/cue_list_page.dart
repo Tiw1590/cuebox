@@ -465,6 +465,50 @@ class _WaitSlot extends StatelessWidget {
   }
 }
 
+/// 列表行上的小状态徽标（循环 / 接 / 同）。
+class _FlagBadge extends StatelessWidget {
+  const _FlagBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.tooltip,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 时长槽：空闲显示总时长，播放中显示实时已播 + 进度条。
 class _DurationSlot extends StatelessWidget {
   const _DurationSlot({
@@ -713,24 +757,33 @@ class _CueTileState extends State<_CueTile> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (cue.loop) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                      if (cue.loop || cue.autoNext || cue.playNextTogether) ...[
+                        const SizedBox(height: 5),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
                           children: [
-                            Icon(
-                              Icons.repeat,
-                              size: 12,
-                              color: CueBoxColors.primary,
-                            ),
-                            SizedBox(width: 3),
-                            Text(
-                              '循环',
-                              style: TextStyle(
-                                fontSize: 11.5,
+                            if (cue.loop)
+                              _FlagBadge(
+                                icon: Icons.repeat_rounded,
+                                label: '循环',
                                 color: CueBoxColors.primary,
+                                tooltip: '循环播放',
                               ),
-                            ),
+                            if (cue.autoNext)
+                              _FlagBadge(
+                                icon: Icons.skip_next_rounded,
+                                label: '接',
+                                color: CueBoxColors.primary,
+                                tooltip: '播完接下一个',
+                              ),
+                            if (cue.playNextTogether)
+                              _FlagBadge(
+                                icon: Icons.layers_rounded,
+                                label: '同',
+                                color: CueBoxColors.secondary,
+                                tooltip: '同时播下一个',
+                              ),
                           ],
                         ),
                       ],

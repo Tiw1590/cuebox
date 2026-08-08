@@ -74,7 +74,8 @@ class CueController extends Notifier<CueControlState> {
       final cue = cues[idx];
       // 只有全局循环或该 Cue 开启“播完接下一个”才继续。
       if (!state.listLoop && !cue.autoNext) return;
-      final next = cues[(idx + 1) % cues.length];
+      final nextIdx = (idx + 1) % cues.length;
+      final next = cues[nextIdx];
       // 结束后等待，再触发下一条。
       if (cue.postWaitMs > 0) {
         state = state.copyWith(
@@ -87,9 +88,13 @@ class CueController extends Notifier<CueControlState> {
         }
       }
       state = state.copyWith(waitingCueId: null, waitingPhase: null);
-      // 等待期间可能被停止或切换，重查一次循环状态。
-      if (!state.listLoop) return;
-      _trigger(next);
+      final consumed = await _trigger(next);
+      // 选中继续往后：下一条已被激活，GO 应指向再下一条。
+      final afterIdx = nextIdx + consumed;
+      state = state.copyWith(
+        selectedCueId: afterIdx < cues.length ? cues[afterIdx].id : null,
+        ended: afterIdx >= cues.length && !state.listLoop && !next.autoNext,
+      );
     });
     ref.onDispose(sub.cancel);
     return CueControlState();
@@ -129,32 +134,32 @@ class CueController extends Notifier<CueControlState> {
       }
       final selIdx = cues.indexWhere((c) => c.id == state.selectedCueId);
       final start = selIdx >= 0 ? selIdx : 0;
-      await _trigger(cues[start]);
-      final nextIdx = start + 1;
-      final isLast = start == cues.length - 1;
+      final consumed = await _trigger(cues[start]);
+      final nextIdx = start + consumed;
       state = state.copyWith(
         selectedCueId: nextIdx < cues.length ? cues[nextIdx].id : null,
-        ended: isLast && !state.listLoop && !cues[start].autoNext,
+        ended:
+            nextIdx >= cues.length && !state.listLoop && !cues[start].autoNext,
       );
     } finally {
       _goBusy = false;
     }
   }
 
-  Future<void> _trigger(Cue cue) async {
+  Future<int> _trigger(Cue cue) async {
     final token = _waitToken;
     // 开始前等待。
     if (cue.preWaitMs > 0) {
       state = state.copyWith(waitingCueId: cue.id, waitingPhase: WaitPhase.pre);
       if (!await _wait(cue.preWaitMs)) {
         state = state.copyWith(waitingCueId: null, waitingPhase: null);
-        return;
+        return 1;
       }
     }
     // 等待刚结束时若已被 ESC 取消，不再触发播放。
     if (token != _waitToken) {
       state = state.copyWith(waitingCueId: null, waitingPhase: null);
-      return;
+      return 1;
     }
     state = state.copyWith(waitingCueId: null, waitingPhase: null);
     final engine = ref.read(playbackEngineProvider.notifier);
@@ -176,6 +181,7 @@ class CueController extends Notifier<CueControlState> {
     state = state.copyWith(lastTriggeredCueId: cue.id);
 
     // 同时播放下一个（叠放，不等待、不独占）。
+    var consumed = 1;
     if (cue.playNextTogether) {
       final cues =
           ref.read(showProvider).valueOrNull?.activeShow.cues ?? <Cue>[];
@@ -194,8 +200,10 @@ class CueController extends Notifier<CueControlState> {
           fadeOut: next.fadeOut,
           stopOthers: false,
         );
+        consumed = 2;
       }
     }
+    return consumed;
   }
 
   void toggleListLoop() {
