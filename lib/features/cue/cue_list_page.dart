@@ -282,11 +282,19 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             onEdit: () => _openInspectorFor(cue),
             onToggleAutoNext: () => ref
                 .read(showProvider.notifier)
-                .updateCue(cue.copyWith(autoNext: !cue.autoNext)),
+                .updateCue(
+                  cue.copyWith(
+                    autoNext: !cue.autoNext,
+                    playNextTogether: false,
+                  ),
+                ),
             onToggleTogether: () => ref
                 .read(showProvider.notifier)
                 .updateCue(
-                  cue.copyWith(playNextTogether: !cue.playNextTogether),
+                  cue.copyWith(
+                    playNextTogether: !cue.playNextTogether,
+                    autoNext: false,
+                  ),
                 ),
             onDelete: () => ref.read(showProvider.notifier).removeCue(cue.id),
             onCopy: () {

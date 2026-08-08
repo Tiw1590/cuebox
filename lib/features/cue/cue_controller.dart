@@ -188,6 +188,22 @@ class CueController extends Notifier<CueControlState> {
       final idx = cues.indexWhere((c) => c.id == cue.id);
       if (idx >= 0 && idx + 1 < cues.length) {
         final next = cues[idx + 1];
+        // 下一条自己的“开始前等待”同样生效（进度条显示在它自己的行上）。
+        if (next.preWaitMs > 0) {
+          state = state.copyWith(
+            waitingCueId: next.id,
+            waitingPhase: WaitPhase.pre,
+          );
+          if (!await _wait(next.preWaitMs)) {
+            state = state.copyWith(waitingCueId: null, waitingPhase: null);
+            return consumed;
+          }
+          if (token != _waitToken) {
+            state = state.copyWith(waitingCueId: null, waitingPhase: null);
+            return consumed;
+          }
+          state = state.copyWith(waitingCueId: null, waitingPhase: null);
+        }
         await engine.trigger(
           uri: next.uri,
           label: next.name,
