@@ -1408,14 +1408,17 @@ class _CueTileState extends State<_CueTile> {
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: cue.demoted
-                          ? _CompactChildTimes(
-                              cue: cue,
-                              durationFuture: _durationFuture,
-                              waitingForThis: waitingForThis,
-                              waitingPhase: waitingPhase,
-                              onEditPre: () => onEditWait(cue, true),
-                              onEditPost: () => onEditWait(cue, false),
-                              onEditFade: onEditFade,
+                          ? FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: _CompactChildTimes(
+                                cue: cue,
+                                durationFuture: _durationFuture,
+                                waitingForThis: waitingForThis,
+                                waitingPhase: waitingPhase,
+                                onEditPre: () => onEditWait(cue, true),
+                                onEditPost: () => onEditWait(cue, false),
+                                onEditFade: onEditFade,
+                              ),
                             )
                           : FittedBox(
                               fit: BoxFit.scaleDown,
