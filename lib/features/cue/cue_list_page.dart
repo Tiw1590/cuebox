@@ -261,9 +261,10 @@ class _CueListPageState extends ConsumerState<CueListPage> {
       itemBuilder: (context, index) {
         final cue = cues[index];
         final selected = control.selectedCueId == cue.id;
-        final isPlaying = playing.values.any(
-          (p) => p.sourceId == cue.id && !p.isStopping,
-        );
+        final activePlay = playing.values
+            .where((p) => p.sourceId == cue.id && !p.isStopping)
+            .firstOrNull;
+        final isPlaying = activePlay != null;
         final tile = Padding(
           padding: EdgeInsets.only(bottom: 10),
           child: _CueTile(
@@ -271,6 +272,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             index: index,
             selected: selected,
             isPlaying: isPlaying,
+            activePlay: activePlay,
             locked: locked,
             onTap: () => ref
                 .read(cueControllerProvider.notifier)
@@ -418,8 +420,9 @@ class _LoopChip extends StatelessWidget {
 }
 
 /// Cue 行右侧的时间信息列：前等待 / 时长 / 后等待。
-class _TimeInfoColumn extends StatelessWidget {
-  const _TimeInfoColumn({
+/// Cue 行右侧的横向时间信息：前等待 / 时长 / 后等待。
+class _TimeInfoRow extends StatelessWidget {
+  const _TimeInfoRow({
     required this.preMs,
     required this.postMs,
     required this.durationFuture,
@@ -435,25 +438,33 @@ class _TimeInfoColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        _TimeRow(label: '前', text: fmtMmSsCc(preMs), onDoubleTap: onEditPre),
-        const SizedBox(height: 4),
-        FutureBuilder<int?>(
-          future: durationFuture,
-          builder: (_, snap) =>
-              _TimeRow(label: '时长', text: fmtMmSsCc(snap.data ?? 0)),
-        ),
-        const SizedBox(height: 4),
-        _TimeRow(label: '后', text: fmtMmSsCc(postMs), onDoubleTap: onEditPost),
-      ],
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _TimeText(label: '前', text: fmtMmSsCc(preMs), onDoubleTap: onEditPre),
+          const SizedBox(width: 12),
+          FutureBuilder<int?>(
+            future: durationFuture,
+            builder: (_, snap) =>
+                _TimeText(label: '时长', text: fmtMmSsCc(snap.data ?? 0)),
+          ),
+          const SizedBox(width: 12),
+          _TimeText(
+            label: '后',
+            text: fmtMmSsCc(postMs),
+            onDoubleTap: onEditPost,
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _TimeRow extends StatelessWidget {
-  const _TimeRow({required this.label, required this.text, this.onDoubleTap});
+class _TimeText extends StatelessWidget {
+  const _TimeText({required this.label, required this.text, this.onDoubleTap});
 
   final String label;
   final String text;
@@ -491,12 +502,77 @@ class _TimeRow extends StatelessWidget {
   }
 }
 
+/// 播放中的实时进度：已播时间 + 进度条 + 总时长。
+class _PlayingProgress extends StatelessWidget {
+  const _PlayingProgress({required this.activePlay});
+
+  final ActivePlay activePlay;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<Duration>(
+      stream: activePlay.positionStream,
+      initialData: Duration.zero,
+      builder: (_, posSnap) {
+        final pos = posSnap.data ?? Duration.zero;
+        return StreamBuilder<Duration?>(
+          stream: activePlay.durationStream,
+          builder: (_, durSnap) {
+            final dur = durSnap.data;
+            final progress = (dur != null && dur.inMilliseconds > 0)
+                ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
+                : 0.0;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  fmtMmSsCc(pos.inMilliseconds),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: CueBoxColors.primary,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 96,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 5,
+                      backgroundColor: CueBoxColors.surfacePressed,
+                      valueColor: AlwaysStoppedAnimation(CueBoxColors.primary),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  fmtMmSsCc(dur?.inMilliseconds ?? 0),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: CueBoxColors.textFaint,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
 class _CueTile extends StatefulWidget {
   const _CueTile({
     required this.cue,
     required this.index,
     required this.selected,
     required this.isPlaying,
+    required this.activePlay,
     required this.locked,
     required this.onTap,
     required this.onEdit,
@@ -511,6 +587,7 @@ class _CueTile extends StatefulWidget {
   final int index;
   final bool selected;
   final bool isPlaying;
+  final ActivePlay? activePlay;
   final bool locked;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -533,6 +610,7 @@ class _CueTileState extends State<_CueTile> {
     final index = widget.index;
     final selected = widget.selected;
     final isPlaying = widget.isPlaying;
+    final activePlay = widget.activePlay;
     final locked = widget.locked;
     final onTap = widget.onTap;
     final onEdit = widget.onEdit;
@@ -613,12 +691,22 @@ class _CueTileState extends State<_CueTile> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                _TimeInfoColumn(
-                  preMs: cue.preWaitMs,
-                  postMs: cue.postWaitMs,
-                  durationFuture: _durationFuture,
-                  onEditPre: () => onEditWait(cue, true),
-                  onEditPost: () => onEditWait(cue, false),
+                Flexible(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: activePlay != null
+                          ? _PlayingProgress(activePlay: activePlay)
+                          : _TimeInfoRow(
+                              preMs: cue.preWaitMs,
+                              postMs: cue.postWaitMs,
+                              durationFuture: _durationFuture,
+                              onEditPre: () => onEditWait(cue, true),
+                              onEditPost: () => onEditWait(cue, false),
+                            ),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 6),
                 if (isPlaying) ...[PlayingIndicator(), SizedBox(width: 8)],
