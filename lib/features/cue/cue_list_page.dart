@@ -212,6 +212,12 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             onProjectSettings: () => showProjectSettingsSheet(context, ref),
             onPaste: canPaste ? () => pasteClipboard(ref, context) : null,
             onAddControl: _addControlCue,
+            selectedDemoted: selected?.demoted,
+            onToggleDemote: selected == null
+                ? null
+                : () => ref
+                      .read(showProvider.notifier)
+                      .updateCue(selected.copyWith(demoted: !selected.demoted)),
           ),
         Expanded(
           child: switch (showAsync) {
@@ -346,12 +352,12 @@ class _CueListPageState extends ConsumerState<CueListPage> {
         final activePlay = playing.values
             .where((p) => p.sourceId == cue.id && !p.isStopping)
             .firstOrNull;
-        final controlTargetNumber = cue.controlAction != null
-            ? (cues
-                      .where((c) => c.controlAction == null)
-                      .toList()
-                      .indexWhere((c) => c.id == cue.controlTargetCueId) +
-                  1)
+        final audioCues = cues.where((c) => c.controlAction == null).toList();
+        final targetIdx = audioCues.indexWhere(
+          (c) => c.id == cue.controlTargetCueId,
+        );
+        final controlTargetNumber = cue.controlAction != null && targetIdx >= 0
+            ? audioCues.take(targetIdx).where((c) => !c.demoted).length + 1
             : null;
         // 降级的控制项不占序号，其余保持连续编号。
         final demotedBefore = cues.take(index).where((c) => c.demoted).length;
@@ -424,6 +430,8 @@ class _CueToolbar extends StatelessWidget {
     required this.onProjectSettings,
     required this.onPaste,
     required this.onAddControl,
+    required this.selectedDemoted,
+    required this.onToggleDemote,
   });
 
   final int cueCount;
@@ -433,6 +441,8 @@ class _CueToolbar extends StatelessWidget {
   final VoidCallback onProjectSettings;
   final VoidCallback? onPaste;
   final ValueChanged<ControlAction> onAddControl;
+  final bool? selectedDemoted;
+  final VoidCallback? onToggleDemote;
 
   @override
   Widget build(BuildContext context) {
@@ -456,6 +466,8 @@ class _CueToolbar extends StatelessWidget {
                         onAddControl(ControlAction.pause);
                       case 'stop':
                         onAddControl(ControlAction.stop);
+                      case 'demote':
+                        onToggleDemote?.call();
                       case 'settings':
                         onProjectSettings();
                       case 'paste':
@@ -487,6 +499,16 @@ class _CueToolbar extends StatelessWidget {
                         icon: Icons.stop_circle_outlined,
                         label: '添加停止控制',
                         color: CueBoxColors.danger,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'demote',
+                      enabled: onToggleDemote != null,
+                      child: _MenuRow(
+                        icon: Icons.unfold_less_rounded,
+                        label: selectedDemoted == true
+                            ? '还原选中（取消降级）'
+                            : '降级选中（不占序号）',
                       ),
                     ),
                     const PopupMenuDivider(),
@@ -541,6 +563,17 @@ class _CueToolbar extends StatelessWidget {
                 onPressed: () => onAddControl(ControlAction.stop),
                 color: CueBoxColors.danger,
                 icon: const Icon(Icons.stop_circle_outlined, size: 21),
+              ),
+              IconButton(
+                tooltip: selectedDemoted == true
+                    ? '还原选中 Cue（取消降级）'
+                    : '降级选中 Cue（不占序号、紧凑）',
+                visualDensity: VisualDensity.compact,
+                onPressed: onToggleDemote,
+                color: selectedDemoted == true
+                    ? CueBoxColors.amber
+                    : CueBoxColors.textSecondary,
+                icon: const Icon(Icons.unfold_less_rounded, size: 21),
               ),
               const Spacer(),
               IconButton(
@@ -1756,7 +1789,10 @@ class _ControlCueEditorState extends State<_ControlCueEditor> {
                   DropdownMenuItem(
                     value: widget.audioCues[i].id,
                     child: Text(
-                      'Cue #${i + 1} · ${widget.audioCues[i].name}',
+                      'Cue #'
+                      '${widget.audioCues[i].demoted ? '—' : (i + 1 - widget.audioCues.take(i).where((a) => a.demoted).length)}'
+                      ' · '
+                      '${widget.audioCues[i].name}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
