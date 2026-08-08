@@ -32,8 +32,8 @@ class CueControlState {
     String? lastTriggeredCueId,
     bool? listLoop,
     bool? ended,
-    String? waitingCueId,
-    WaitPhase? waitingPhase,
+    Object? waitingCueId = _unset,
+    Object? waitingPhase = _unset,
   }) {
     return CueControlState(
       selectedCueId: identical(selectedCueId, _unset)
@@ -42,8 +42,12 @@ class CueControlState {
       lastTriggeredCueId: lastTriggeredCueId ?? this.lastTriggeredCueId,
       listLoop: listLoop ?? this.listLoop,
       ended: ended ?? this.ended,
-      waitingCueId: waitingCueId ?? this.waitingCueId,
-      waitingPhase: waitingPhase ?? this.waitingPhase,
+      waitingCueId: identical(waitingCueId, _unset)
+          ? this.waitingCueId
+          : waitingCueId as String?,
+      waitingPhase: identical(waitingPhase, _unset)
+          ? this.waitingPhase
+          : waitingPhase as WaitPhase?,
     );
   }
 

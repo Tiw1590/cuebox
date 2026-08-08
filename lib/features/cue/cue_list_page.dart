@@ -465,10 +465,17 @@ class _WaitSlot extends StatelessWidget {
 
 /// 时长槽：空闲显示总时长，播放中显示实时已播 + 进度条。
 class _DurationSlot extends StatelessWidget {
-  const _DurationSlot({required this.activePlay, required this.durationFuture});
+  const _DurationSlot({
+    required this.activePlay,
+    required this.durationFuture,
+    required this.startMs,
+    required this.endMs,
+  });
 
   final ActivePlay? activePlay;
   final Future<int?> durationFuture;
+  final int startMs;
+  final int endMs;
 
   @override
   Widget build(BuildContext context) {
@@ -505,16 +512,27 @@ class _DurationSlot extends StatelessWidget {
     }
     return FutureBuilder<int?>(
       future: durationFuture,
-      builder: (_, snap) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _TimeText(label: '时长', text: fmtMmSsCc(snap.data ?? 0)),
-          const SizedBox(height: 4),
-          const SizedBox(height: 3),
-        ],
-      ),
+      builder: (_, snap) {
+        final total = snap.data ?? 0;
+        final trimmed = _trimmedMs(total);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _TimeText(label: '时长', text: fmtMmSsCc(trimmed)),
+            const SizedBox(height: 4),
+            const SizedBox(height: 3),
+          ],
+        );
+      },
     );
+  }
+
+  int _trimmedMs(int totalMs) {
+    if (totalMs <= 0) return 0;
+    if (endMs > 0 && endMs > startMs) return endMs - startMs;
+    if (startMs > 0) return totalMs - startMs;
+    return totalMs;
   }
 }
 
@@ -741,6 +759,8 @@ class _CueTileState extends State<_CueTile> {
                             _DurationSlot(
                               activePlay: activePlay,
                               durationFuture: _durationFuture,
+                              startMs: cue.startMs,
+                              endMs: cue.endMs,
                             ),
                             const SizedBox(width: 14),
                             _WaitSlot(
