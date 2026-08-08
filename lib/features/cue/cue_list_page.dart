@@ -879,6 +879,7 @@ class _CompactChildTimes extends StatelessWidget {
   const _CompactChildTimes({
     required this.cue,
     required this.durationFuture,
+    required this.activePlay,
     required this.waitingForThis,
     required this.waitingPhase,
     required this.onEditPre,
@@ -888,6 +889,7 @@ class _CompactChildTimes extends StatelessWidget {
 
   final Cue cue;
   final Future<int?> durationFuture;
+  final ActivePlay? activePlay;
   final bool waitingForThis;
   final WaitPhase? waitingPhase;
   final VoidCallback onEditPre;
@@ -921,6 +923,31 @@ class _CompactChildTimes extends StatelessWidget {
               ControlAction.stop => CueBoxColors.danger,
             },
             onDoubleTap: onEditFade,
+          )
+        else if (activePlay != null)
+          StreamBuilder<Duration>(
+            stream: activePlay!.positionStream,
+            initialData: Duration.zero,
+            builder: (_, posSnap) {
+              final pos = posSnap.data ?? Duration.zero;
+              return StreamBuilder<Duration?>(
+                stream: activePlay!.durationStream,
+                builder: (_, durSnap) {
+                  final totalMs = durSnap.data?.inMilliseconds ?? 0;
+                  final progress = totalMs > 0
+                      ? (pos.inMilliseconds / totalMs).clamp(0.0, 1.0)
+                      : 0.0;
+                  return _ChildTimeSlot(
+                    label: '时长',
+                    text: fmtMmSsCc(pos.inMilliseconds),
+                    active: false,
+                    durationMs: 0,
+                    progress: progress,
+                    color: CueBoxColors.primary,
+                  );
+                },
+              );
+            },
           )
         else
           FutureBuilder<int?>(
@@ -968,6 +995,7 @@ class _ChildTimeSlot extends StatelessWidget {
     required this.durationMs,
     required this.color,
     this.onDoubleTap,
+    this.progress,
   });
 
   final String label;
@@ -976,6 +1004,7 @@ class _ChildTimeSlot extends StatelessWidget {
   final int durationMs;
   final Color color;
   final VoidCallback? onDoubleTap;
+  final double? progress;
 
   @override
   Widget build(BuildContext context) {
@@ -1009,7 +1038,21 @@ class _ChildTimeSlot extends StatelessWidget {
         alignment: Alignment.centerRight,
         children: [
           wrapped,
-          if (active && durationMs > 0)
+          if (progress != null && progress! >= 0)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 18,
+                  backgroundColor: color.withValues(alpha: 0.10),
+                  valueColor: AlwaysStoppedAnimation(
+                    color.withValues(alpha: 0.30),
+                  ),
+                ),
+              ),
+            )
+          else if (active && durationMs > 0)
             Positioned.fill(
               child: TweenAnimationBuilder<double>(
                 key: ValueKey('$label$active'),
@@ -1424,6 +1467,7 @@ class _CueTileState extends State<_CueTile> {
                               child: _CompactChildTimes(
                                 cue: cue,
                                 durationFuture: _durationFuture,
+                                activePlay: activePlay,
                                 waitingForThis: waitingForThis,
                                 waitingPhase: waitingPhase,
                                 onEditPre: () => onEditWait(cue, true),
