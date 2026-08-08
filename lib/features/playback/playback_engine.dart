@@ -183,6 +183,22 @@ class PlaybackEngine extends Notifier<Map<String, ActivePlay>> {
     } catch (_) {}
   }
 
+  /// 暂停指定逻辑条目的全部播放（控制 Cue 用）。
+  Future<void> pauseSource(String sourceId) async {
+    final targets = state.values
+        .where((p) => p.sourceId == sourceId && !p.isStopping)
+        .toList();
+    await Future.wait(targets.map((p) => pausePlay(p.id)));
+  }
+
+  /// 恢复指定逻辑条目的全部播放（控制 Cue 用）。
+  Future<void> resumeSource(String sourceId) async {
+    final targets = state.values
+        .where((p) => p.sourceId == sourceId && !p.isStopping)
+        .toList();
+    await Future.wait(targets.map((p) => resumePlay(p.id)));
+  }
+
   Future<void> resumePlay(String id) async {
     final play = state[id];
     if (play == null || play.isStopping) return;

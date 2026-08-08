@@ -1,6 +1,9 @@
 /// 工程类型：Cue 列表工程 或 Pad 工程（二者独立）。
 enum ShowKind { cue, cart }
 
+/// 控制 Cue 的动作：播放 / 暂停 / 停止（控制它前面的目标音频）。
+enum ControlAction { play, pause, stop }
+
 /// Cue 列表里的一条 cue：存储音频文件引用 + 播放参数。
 class Cue {
   Cue({
@@ -15,6 +18,8 @@ class Cue {
     this.autoNext = false,
     this.playNextTogether = false,
     this.followGlobal = true,
+    this.controlAction,
+    this.controlTargetCueId,
     this.loop = false,
     this.volume = 1.0,
     this.fadeInMs = 20,
@@ -46,6 +51,12 @@ class Cue {
 
   /// 跟随全局（项目默认）参数；关闭后以本音频自己的参数为准。
   bool followGlobal;
+
+  /// 控制 Cue：非 null 表示这是一条控制项。
+  ControlAction? controlAction;
+
+  /// 控制 Cue 的目标音频 id。
+  String? controlTargetCueId;
   bool loop;
   double volume;
   int fadeInMs;
@@ -64,6 +75,8 @@ class Cue {
     bool? autoNext,
     bool? playNextTogether,
     bool? followGlobal,
+    ControlAction? controlAction,
+    String? controlTargetCueId,
     bool? loop,
     double? volume,
     int? fadeInMs,
@@ -81,6 +94,8 @@ class Cue {
       autoNext: autoNext ?? this.autoNext,
       playNextTogether: playNextTogether ?? this.playNextTogether,
       followGlobal: followGlobal ?? this.followGlobal,
+      controlAction: controlAction ?? this.controlAction,
+      controlTargetCueId: controlTargetCueId ?? this.controlTargetCueId,
       loop: loop ?? this.loop,
       volume: volume ?? this.volume,
       fadeInMs: fadeInMs ?? this.fadeInMs,
@@ -100,6 +115,8 @@ class Cue {
     'autoNext': autoNext,
     'playNextTogether': playNextTogether,
     'followGlobal': followGlobal,
+    'controlAction': controlAction?.name,
+    'controlTargetCueId': controlTargetCueId,
     'loop': loop,
     'volume': volume,
     'fadeInMs': fadeInMs,
@@ -119,6 +136,9 @@ class Cue {
       autoNext: json['autoNext'] as bool? ?? false,
       playNextTogether: json['playNextTogether'] as bool? ?? false,
       followGlobal: json['followGlobal'] as bool? ?? true,
+      controlAction: ControlAction.values
+          .asNameMap()[json['controlAction'] as String?],
+      controlTargetCueId: json['controlTargetCueId'] as String?,
       loop: json['loop'] as bool? ?? false,
       volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
       fadeInMs: (json['fadeInMs'] as num?)?.toInt() ?? 20,

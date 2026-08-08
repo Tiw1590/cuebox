@@ -92,6 +92,8 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
                   autoNext: c.autoNext,
                   playNextTogether: c.playNextTogether,
                   followGlobal: c.followGlobal,
+                  controlAction: c.controlAction,
+                  controlTargetCueId: c.controlTargetCueId,
                   loop: c.loop,
                   volume: c.volume,
                   fadeInMs: c.fadeInMs,
@@ -265,6 +267,8 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
     int preWaitMs = 0,
     int postWaitMs = 0,
     bool followGlobal = true,
+    ControlAction? controlAction,
+    String? controlTargetCueId,
   }) {
     return _mutateShow(
       (show) => show.copyWith(
@@ -284,6 +288,8 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
             preWaitMs: preWaitMs,
             postWaitMs: postWaitMs,
             followGlobal: followGlobal,
+            controlAction: controlAction,
+            controlTargetCueId: controlTargetCueId,
           ),
         ],
       ),
@@ -308,6 +314,34 @@ class ShowNotifier extends AsyncNotifier<ShowLibrary> {
         ],
       ),
     );
+  }
+
+  /// 在指定位置插入一条控制 Cue（播放/暂停/停止，控制目标音频）。
+  Future<void> addControlCue({
+    required int afterIndex,
+    required String targetCueId,
+    required ControlAction action,
+  }) {
+    return _mutateShow((show) {
+      final cues = [...show.cues];
+      final idx = afterIndex.clamp(0, cues.length);
+      cues.insert(
+        idx,
+        Cue(
+          id: _genId('ctl'),
+          name: switch (action) {
+            ControlAction.play => '播放',
+            ControlAction.pause => '暂停',
+            ControlAction.stop => '停止',
+          },
+          uri: '',
+          followGlobal: false,
+          controlAction: action,
+          controlTargetCueId: targetCueId,
+        ),
+      );
+      return show.copyWith(cues: cues);
+    });
   }
 
   Future<void> addCartSlots(List<({String uri, String name})> items) {

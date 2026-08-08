@@ -69,6 +69,61 @@ class _CueListPageState extends ConsumerState<CueListPage> {
         );
   }
 
+  void _addControlCue(ControlAction action) {
+    final show = ref.read(activeShowProvider).valueOrNull;
+    if (show == null) return;
+    final cues = show.cues;
+    final selectedId = ref.read(cueControllerProvider).selectedCueId;
+    final target =
+        cues
+            .where((c) => c.controlAction == null && c.id == selectedId)
+            .firstOrNull ??
+        cues.where((c) => c.controlAction == null).lastOrNull;
+    if (target == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请先添加音频 Cue')));
+      return;
+    }
+    final idx = cues.indexOf(target);
+    ref
+        .read(showProvider.notifier)
+        .addControlCue(
+          afterIndex: idx + 1,
+          targetCueId: target.id,
+          action: action,
+        );
+  }
+
+  Future<void> _editControlCue(Cue cue) async {
+    final show = ref.read(activeShowProvider).valueOrNull;
+    if (show == null) return;
+    final result = await showModalBottomSheet<_ControlCueResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ControlCueEditor(
+        cue: cue,
+        audioCues: show.cues.where((c) => c.controlAction == null).toList(),
+      ),
+    );
+    if (result == null) return;
+    await ref
+        .read(showProvider.notifier)
+        .updateCue(
+          cue.copyWith(
+            name: result.name,
+            controlAction: result.action,
+            controlTargetCueId: result.targetCueId,
+            preWaitMs: result.preWaitMs,
+            postWaitMs: result.postWaitMs,
+            fadeInMs: result.fadeInMs,
+            fadeOutMs: result.fadeOutMs,
+            autoNext: result.autoNext,
+            playNextTogether: result.playNextTogether,
+          ),
+        );
+  }
+
   Future<void> _confirmClearAll() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -125,7 +180,13 @@ class _CueListPageState extends ConsumerState<CueListPage> {
           canStop: playing.isNotEmpty,
           onStopAll: () => ref.read(cueControllerProvider.notifier).stopAll(),
           onEditSelected: () {
-            if (selected != null) _openInspectorFor(selected);
+            if (selected != null) {
+              if (selected.controlAction != null) {
+                _editControlCue(selected);
+              } else {
+                _openInspectorFor(selected);
+              }
+            }
           },
           locked: locked,
         ),
@@ -138,6 +199,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             onClearAll: _confirmClearAll,
             onProjectSettings: () => showProjectSettingsSheet(context, ref),
             onPaste: canPaste ? () => pasteClipboard(ref, context) : null,
+            onAddControl: _addControlCue,
           ),
         Expanded(
           child: switch (showAsync) {
@@ -272,6 +334,13 @@ class _CueListPageState extends ConsumerState<CueListPage> {
         final activePlay = playing.values
             .where((p) => p.sourceId == cue.id && !p.isStopping)
             .firstOrNull;
+        final controlTargetNumber = cue.controlAction != null
+            ? (cues
+                      .where((c) => c.controlAction == null)
+                      .toList()
+                      .indexWhere((c) => c.id == cue.controlTargetCueId) +
+                  1)
+            : null;
         final tile = Padding(
           padding: EdgeInsets.only(bottom: 10),
           child: _CueTile(
@@ -282,11 +351,14 @@ class _CueListPageState extends ConsumerState<CueListPage> {
             waitingForThis: control.waitingCueId == cue.id,
             waitingPhase: control.waitingPhase,
             hideTimes: hideTimes,
+            controlTargetNumber: controlTargetNumber,
             locked: locked,
             onTap: () => ref
                 .read(cueControllerProvider.notifier)
                 .select(selected ? '' : cue.id),
-            onEdit: () => _openInspectorFor(cue),
+            onEdit: () => cue.controlAction != null
+                ? _editControlCue(cue)
+                : _openInspectorFor(cue),
             onToggleAutoNext: () => ref
                 .read(showProvider.notifier)
                 .updateCue(
@@ -334,6 +406,7 @@ class _CueToolbar extends StatelessWidget {
     required this.onClearAll,
     required this.onProjectSettings,
     required this.onPaste,
+    required this.onAddControl,
   });
 
   final int cueCount;
@@ -342,6 +415,7 @@ class _CueToolbar extends StatelessWidget {
   final VoidCallback onClearAll;
   final VoidCallback onProjectSettings;
   final VoidCallback? onPaste;
+  final ValueChanged<ControlAction> onAddControl;
 
   @override
   Widget build(BuildContext context) {
@@ -352,6 +426,27 @@ class _CueToolbar extends StatelessWidget {
           _LoopChip(active: listLoop, onTap: onToggleLoop),
           SizedBox(width: 6),
           Spacer(),
+          IconButton(
+            tooltip: '在选中音频后添加“播放”控制',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => onAddControl(ControlAction.play),
+            color: CueBoxColors.primary,
+            icon: const Icon(Icons.play_circle_outline, size: 21),
+          ),
+          IconButton(
+            tooltip: '在选中音频后添加“暂停”控制',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => onAddControl(ControlAction.pause),
+            color: CueBoxColors.amber,
+            icon: const Icon(Icons.pause_circle_outline, size: 21),
+          ),
+          IconButton(
+            tooltip: '在选中音频后添加“停止”控制',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => onAddControl(ControlAction.stop),
+            color: CueBoxColors.danger,
+            icon: const Icon(Icons.stop_circle_outlined, size: 21),
+          ),
           IconButton(
             tooltip: '全局参数',
             visualDensity: VisualDensity.compact,
@@ -524,6 +619,41 @@ class _FlagBadge extends StatelessWidget {
   }
 }
 
+/// 控制 Cue 右侧信息：前等 / 淡入 / 淡出 / 后等。
+class _ControlInfoRow extends StatelessWidget {
+  const _ControlInfoRow({
+    required this.preMs,
+    required this.postMs,
+    required this.fadeInMs,
+    required this.fadeOutMs,
+    required this.onEditPre,
+    required this.onEditPost,
+  });
+
+  final int preMs;
+  final int postMs;
+  final int fadeInMs;
+  final int fadeOutMs;
+  final VoidCallback onEditPre;
+  final VoidCallback onEditPost;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _TimeText(label: '前', text: fmtMmSsCc(preMs), onDoubleTap: onEditPre),
+        const SizedBox(width: 12),
+        _TimeText(label: '淡入', text: fmtMmSsCc(fadeInMs)),
+        const SizedBox(width: 12),
+        _TimeText(label: '淡出', text: fmtMmSsCc(fadeOutMs)),
+        const SizedBox(width: 12),
+        _TimeText(label: '后', text: fmtMmSsCc(postMs), onDoubleTap: onEditPost),
+      ],
+    );
+  }
+}
+
 /// 时长槽：空闲显示总时长，播放中显示实时已播 + 进度条。
 class _DurationSlot extends StatelessWidget {
   const _DurationSlot({
@@ -675,6 +805,7 @@ class _CueTile extends StatefulWidget {
     required this.waitingForThis,
     required this.waitingPhase,
     required this.hideTimes,
+    required this.controlTargetNumber,
     required this.locked,
     required this.onTap,
     required this.onEdit,
@@ -692,6 +823,7 @@ class _CueTile extends StatefulWidget {
   final bool waitingForThis;
   final WaitPhase? waitingPhase;
   final bool hideTimes;
+  final int? controlTargetNumber;
   final bool locked;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -706,7 +838,9 @@ class _CueTile extends StatefulWidget {
 }
 
 class _CueTileState extends State<_CueTile> {
-  late final Future<int?> _durationFuture = loadDurationMs(widget.cue.uri);
+  late final Future<int?> _durationFuture = widget.cue.controlAction != null
+      ? Future.value(null)
+      : loadDurationMs(widget.cue.uri);
 
   @override
   Widget build(BuildContext context) {
@@ -717,6 +851,7 @@ class _CueTileState extends State<_CueTile> {
     final waitingForThis = widget.waitingForThis;
     final waitingPhase = widget.waitingPhase;
     final hideTimes = widget.hideTimes;
+    final controlTargetNumber = widget.controlTargetNumber;
     final locked = widget.locked;
     final onTap = widget.onTap;
     final onEdit = widget.onEdit;
@@ -772,7 +907,51 @@ class _CueTileState extends State<_CueTile> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (cue.loop || cue.autoNext || cue.playNextTogether) ...[
+                      if (cue.controlAction != null) ...[
+                        const SizedBox(height: 5),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            _FlagBadge(
+                              icon: switch (cue.controlAction!) {
+                                ControlAction.play => Icons.play_circle_outline,
+                                ControlAction.pause =>
+                                  Icons.pause_circle_outline,
+                                ControlAction.stop =>
+                                  Icons.stop_circle_outlined,
+                              },
+                              label: '控制 #$controlTargetNumber',
+                              color: switch (cue.controlAction!) {
+                                ControlAction.play => CueBoxColors.primary,
+                                ControlAction.pause => CueBoxColors.amber,
+                                ControlAction.stop => CueBoxColors.danger,
+                              },
+                              tooltip: switch (cue.controlAction!) {
+                                ControlAction.play => '控制播放',
+                                ControlAction.pause => '控制暂停',
+                                ControlAction.stop => '控制停止',
+                              },
+                            ),
+                            if (cue.autoNext)
+                              _FlagBadge(
+                                icon: Icons.skip_next_rounded,
+                                label: '接',
+                                color: CueBoxColors.primary,
+                                tooltip: '播完接下一个',
+                              ),
+                            if (cue.playNextTogether)
+                              _FlagBadge(
+                                icon: Icons.layers_rounded,
+                                label: '同',
+                                color: CueBoxColors.secondary,
+                                tooltip: '同时播下一个',
+                              ),
+                          ],
+                        ),
+                      ] else if (cue.loop ||
+                          cue.autoNext ||
+                          cue.playNextTogether) ...[
                         const SizedBox(height: 5),
                         Wrap(
                           spacing: 8,
@@ -812,39 +991,48 @@ class _CueTileState extends State<_CueTile> {
                       alignment: Alignment.centerRight,
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _WaitSlot(
-                              label: '前',
-                              text: fmtMmSsCc(cue.preWaitMs),
-                              color: CueBoxColors.amber,
-                              active:
-                                  waitingForThis &&
-                                  waitingPhase == WaitPhase.pre,
-                              durationMs: cue.preWaitMs,
-                              onDoubleTap: () => onEditWait(cue, true),
-                            ),
-                            const SizedBox(width: 14),
-                            _DurationSlot(
-                              activePlay: activePlay,
-                              durationFuture: _durationFuture,
-                              startMs: cue.startMs,
-                              endMs: cue.endMs,
-                            ),
-                            const SizedBox(width: 14),
-                            _WaitSlot(
-                              label: '后',
-                              text: fmtMmSsCc(cue.postWaitMs),
-                              color: CueBoxColors.secondary,
-                              active:
-                                  waitingForThis &&
-                                  waitingPhase == WaitPhase.post,
-                              durationMs: cue.postWaitMs,
-                              onDoubleTap: () => onEditWait(cue, false),
-                            ),
-                          ],
-                        ),
+                        child: cue.controlAction != null
+                            ? _ControlInfoRow(
+                                preMs: cue.preWaitMs,
+                                postMs: cue.postWaitMs,
+                                fadeInMs: cue.fadeInMs,
+                                fadeOutMs: cue.fadeOutMs,
+                                onEditPre: () => onEditWait(cue, true),
+                                onEditPost: () => onEditWait(cue, false),
+                              )
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _WaitSlot(
+                                    label: '前',
+                                    text: fmtMmSsCc(cue.preWaitMs),
+                                    color: CueBoxColors.amber,
+                                    active:
+                                        waitingForThis &&
+                                        waitingPhase == WaitPhase.pre,
+                                    durationMs: cue.preWaitMs,
+                                    onDoubleTap: () => onEditWait(cue, true),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  _DurationSlot(
+                                    activePlay: activePlay,
+                                    durationFuture: _durationFuture,
+                                    startMs: cue.startMs,
+                                    endMs: cue.endMs,
+                                  ),
+                                  const SizedBox(width: 14),
+                                  _WaitSlot(
+                                    label: '后',
+                                    text: fmtMmSsCc(cue.postWaitMs),
+                                    color: CueBoxColors.secondary,
+                                    active:
+                                        waitingForThis &&
+                                        waitingPhase == WaitPhase.post,
+                                    durationMs: cue.postWaitMs,
+                                    onDoubleTap: () => onEditWait(cue, false),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                   ),
@@ -893,10 +1081,14 @@ class _CueTileState extends State<_CueTile> {
                           ],
                         ),
                       ),
-                      PopupMenuItem(
-                        value: 'copy',
-                        child: _MenuRow(icon: Icons.copy_outlined, label: '复制'),
-                      ),
+                      if (cue.controlAction == null)
+                        PopupMenuItem(
+                          value: 'copy',
+                          child: _MenuRow(
+                            icon: Icons.copy_outlined,
+                            label: '复制',
+                          ),
+                        ),
                       PopupMenuItem(
                         value: 'delete',
                         child: _MenuRow(
@@ -1233,6 +1425,319 @@ class _WaitTimeDialogState extends State<_WaitTimeDialog> {
           child: const Text('确定'),
         ),
       ],
+    );
+  }
+}
+
+class _ControlCueResult {
+  const _ControlCueResult({
+    required this.name,
+    required this.action,
+    required this.targetCueId,
+    required this.preWaitMs,
+    required this.postWaitMs,
+    required this.fadeInMs,
+    required this.fadeOutMs,
+    required this.autoNext,
+    required this.playNextTogether,
+  });
+
+  final String name;
+  final ControlAction action;
+  final String targetCueId;
+  final int preWaitMs;
+  final int postWaitMs;
+  final int fadeInMs;
+  final int fadeOutMs;
+  final bool autoNext;
+  final bool playNextTogether;
+}
+
+/// 控制 Cue 编辑面板：动作、目标、等待、淡入淡出、接/同。
+class _ControlCueEditor extends StatefulWidget {
+  const _ControlCueEditor({required this.cue, required this.audioCues});
+
+  final Cue cue;
+  final List<Cue> audioCues;
+
+  @override
+  State<_ControlCueEditor> createState() => _ControlCueEditorState();
+}
+
+class _ControlCueEditorState extends State<_ControlCueEditor> {
+  late final TextEditingController _nameController;
+  late ControlAction _action;
+  late String _targetCueId;
+  late int _preWaitMs;
+  late int _postWaitMs;
+  late int _fadeInMs;
+  late int _fadeOutMs;
+  late bool _autoNext;
+  late bool _together;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.cue.name);
+    _action = widget.cue.controlAction ?? ControlAction.play;
+    _targetCueId =
+        widget.cue.controlTargetCueId ??
+        (widget.audioCues.isNotEmpty ? widget.audioCues.last.id : '');
+    _preWaitMs = widget.cue.preWaitMs;
+    _postWaitMs = widget.cue.postWaitMs;
+    _fadeInMs = widget.cue.fadeInMs;
+    _fadeOutMs = widget.cue.fadeOutMs;
+    _autoNext = widget.cue.autoNext;
+    _together = widget.cue.playNextTogether;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    Navigator.of(context).pop(
+      _ControlCueResult(
+        name: _nameController.text.trim().isEmpty
+            ? widget.cue.name
+            : _nameController.text.trim(),
+        action: _action,
+        targetCueId: _targetCueId,
+        preWaitMs: _preWaitMs,
+        postWaitMs: _postWaitMs,
+        fadeInMs: _fadeInMs,
+        fadeOutMs: _fadeOutMs,
+        autoNext: _autoNext,
+        playNextTogether: _together,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 4,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('控制 Cue 编辑', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: '名称',
+                prefixIcon: Icon(Icons.touch_app_outlined, size: 20),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<ControlAction>(
+              segments: const [
+                ButtonSegment(
+                  value: ControlAction.play,
+                  icon: Icon(Icons.play_arrow_rounded),
+                  label: Text('播放'),
+                ),
+                ButtonSegment(
+                  value: ControlAction.pause,
+                  icon: Icon(Icons.pause_rounded),
+                  label: Text('暂停'),
+                ),
+                ButtonSegment(
+                  value: ControlAction.stop,
+                  icon: Icon(Icons.stop_rounded),
+                  label: Text('停止'),
+                ),
+              ],
+              selected: {_action},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) => setState(() => _action = s.first),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _targetCueId,
+              decoration: const InputDecoration(labelText: '控制目标'),
+              items: [
+                for (var i = 0; i < widget.audioCues.length; i++)
+                  DropdownMenuItem(
+                    value: widget.audioCues[i].id,
+                    child: Text(
+                      'Cue #${i + 1} · ${widget.audioCues[i].name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (v) {
+                if (v != null) setState(() => _targetCueId = v);
+              },
+            ),
+            const SizedBox(height: 8),
+            _ControlSliderRow(
+              label: '前等',
+              valueLabel: fmtMmSsCc(_preWaitMs),
+              value: _preWaitMs.toDouble(),
+              max: 30000,
+              onChanged: (v) => setState(() => _preWaitMs = v.round()),
+            ),
+            _ControlSliderRow(
+              label: '后等',
+              valueLabel: fmtMmSsCc(_postWaitMs),
+              value: _postWaitMs.toDouble(),
+              max: 30000,
+              onChanged: (v) => setState(() => _postWaitMs = v.round()),
+            ),
+            _ControlSliderRow(
+              label: '淡入',
+              valueLabel: fmtMmSsCc(_fadeInMs),
+              value: _fadeInMs.toDouble(),
+              max: 30000,
+              onChanged: (v) => setState(() => _fadeInMs = v.round()),
+            ),
+            _ControlSliderRow(
+              label: '淡出',
+              valueLabel: fmtMmSsCc(_fadeOutMs),
+              value: _fadeOutMs.toDouble(),
+              max: 30000,
+              onChanged: (v) => setState(() => _fadeOutMs = v.round()),
+            ),
+            _ControlSwitchRow(
+              title: '接',
+              subtitle: '播完接下一个',
+              value: _autoNext,
+              onChanged: (v) => setState(() {
+                _autoNext = v;
+                if (v) _together = false;
+              }),
+            ),
+            _ControlSwitchRow(
+              title: '同',
+              subtitle: '同时播下一个',
+              value: _together,
+              onChanged: (v) => setState(() {
+                _together = v;
+                if (v) _autoNext = false;
+              }),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text('关闭'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: _save,
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('保存'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ControlSliderRow extends StatelessWidget {
+  const _ControlSliderRow({
+    required this.label,
+    required this.valueLabel,
+    required this.value,
+    required this.max,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String valueLabel;
+  final double value;
+  final double max;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 44,
+          child: Text(label, style: const TextStyle(fontSize: 13.5)),
+        ),
+        Expanded(
+          child: Slider(
+            value: value.clamp(0, max),
+            min: 0,
+            max: max,
+            divisions: 300,
+            onChanged: onChanged,
+          ),
+        ),
+        SizedBox(
+          width: 64,
+          child: Text(
+            valueLabel,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: CueBoxColors.primary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ControlSwitchRow extends StatelessWidget {
+  const _ControlSwitchRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 14)),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 12, color: CueBoxColors.textFaint),
+                ),
+              ],
+            ),
+          ),
+          Switch(value: value, onChanged: onChanged),
+        ],
+      ),
     );
   }
 }

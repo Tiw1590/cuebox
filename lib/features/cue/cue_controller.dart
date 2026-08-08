@@ -163,30 +163,36 @@ class CueController extends Notifier<CueControlState> {
     }
     state = state.copyWith(waitingCueId: null, waitingPhase: null);
     final engine = ref.read(playbackEngineProvider.notifier);
-    // 优先级：音频单独设置（followGlobal=false）用自己参数，否则用项目全局参数。
     final show = ref.read(showProvider).valueOrNull?.activeShow;
-    final volume = cue.followGlobal ? (show?.defaultVolume ?? 1.0) : cue.volume;
-    final loop = cue.followGlobal ? (show?.defaultLoop ?? false) : cue.loop;
-    final fadeInMs = cue.followGlobal
-        ? (show?.defaultFadeInMs ?? 20)
-        : cue.fadeInMs;
-    final fadeOutMs = cue.followGlobal
-        ? (show?.defaultFadeOutMs ?? 150)
-        : cue.fadeOutMs;
-    final playId = await engine.trigger(
-      uri: cue.uri,
-      label: cue.name,
-      sourceId: cue.id,
-      startMs: cue.startMs,
-      endMs: cue.endMs,
-      loop: loop,
-      volume: volume,
-      fadeIn: Duration(milliseconds: fadeInMs),
-      fadeOut: Duration(milliseconds: fadeOutMs),
-      stopOthers: true,
-    );
-    if (playId != null) {
-      _playToCue[playId] = cue.id;
+    if (cue.controlAction != null) {
+      await _executeControl(cue, engine, show);
+    } else {
+      // 优先级：音频单独设置（followGlobal=false）用自己参数，否则用项目全局参数。
+      final volume = cue.followGlobal
+          ? (show?.defaultVolume ?? 1.0)
+          : cue.volume;
+      final loop = cue.followGlobal ? (show?.defaultLoop ?? false) : cue.loop;
+      final fadeInMs = cue.followGlobal
+          ? (show?.defaultFadeInMs ?? 20)
+          : cue.fadeInMs;
+      final fadeOutMs = cue.followGlobal
+          ? (show?.defaultFadeOutMs ?? 150)
+          : cue.fadeOutMs;
+      final playId = await engine.trigger(
+        uri: cue.uri,
+        label: cue.name,
+        sourceId: cue.id,
+        startMs: cue.startMs,
+        endMs: cue.endMs,
+        loop: loop,
+        volume: volume,
+        fadeIn: Duration(milliseconds: fadeInMs),
+        fadeOut: Duration(milliseconds: fadeOutMs),
+        stopOthers: true,
+      );
+      if (playId != null) {
+        _playToCue[playId] = cue.id;
+      }
     }
     state = state.copyWith(lastTriggeredCueId: cue.id);
 
@@ -242,6 +248,52 @@ class CueController extends Notifier<CueControlState> {
       }
     }
     return consumed;
+  }
+
+  /// 执行控制 Cue（播放/暂停/停止目标音频）。
+  Future<void> _executeControl(
+    Cue cue,
+    PlaybackEngine engine,
+    Show? show,
+  ) async {
+    final cues = ref.read(showProvider).valueOrNull?.activeShow.cues ?? <Cue>[];
+    final target = cues
+        .where((c) => c.controlAction == null && c.id == cue.controlTargetCueId)
+        .firstOrNull;
+    if (target == null) return;
+
+    switch (cue.controlAction!) {
+      case ControlAction.play:
+        if (engine.isPlayingSource(target.id)) {
+          await engine.resumeSource(target.id);
+        } else {
+          final volume = target.followGlobal
+              ? (show?.defaultVolume ?? 1.0)
+              : target.volume;
+          final loop = target.followGlobal
+              ? (show?.defaultLoop ?? false)
+              : target.loop;
+          await engine.trigger(
+            uri: target.uri,
+            label: target.name,
+            sourceId: target.id,
+            startMs: target.startMs,
+            endMs: target.endMs,
+            loop: loop,
+            volume: volume,
+            fadeIn: Duration(milliseconds: cue.fadeInMs),
+            fadeOut: Duration(milliseconds: cue.fadeOutMs),
+            stopOthers: false,
+          );
+        }
+      case ControlAction.pause:
+        await engine.pauseSource(target.id);
+      case ControlAction.stop:
+        await engine.stopSource(
+          target.id,
+          fadeOut: Duration(milliseconds: cue.fadeOutMs),
+        );
+    }
   }
 
   void toggleListLoop() {
