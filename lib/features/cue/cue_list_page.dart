@@ -312,7 +312,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
               Container(
                 height: 360,
                 decoration: BoxDecoration(
-                  color: Color(0xF20D131B),
+                  color: CueBoxColors.surfaceHigh.withValues(alpha: 0.92),
                   border: Border(top: BorderSide(color: CueBoxColors.border)),
                 ),
                 child: Padding(
@@ -1733,7 +1733,7 @@ class _IndexBadge extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
                 color: selected
-                    ? Color(0xFF002A36)
+                    ? CueBoxColors.onAccent
                     : CueBoxColors.textSecondary,
               ),
             ),
@@ -1920,7 +1920,7 @@ class _GoButton extends StatelessWidget {
               Icon(
                 Icons.play_arrow_rounded,
                 size: 40,
-                color: enabled ? Color(0xFF002A36) : CueBoxColors.textFaint,
+                color: enabled ? CueBoxColors.onAccent : CueBoxColors.textFaint,
               ),
               SizedBox(width: 6),
               Text(
@@ -1929,7 +1929,7 @@ class _GoButton extends StatelessWidget {
                   fontSize: 30,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.5,
-                  color: enabled ? Color(0xFF002A36) : CueBoxColors.textFaint,
+                  color: enabled ? CueBoxColors.onAccent : CueBoxColors.textFaint,
                 ),
               ),
             ],

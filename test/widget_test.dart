@@ -6,12 +6,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import 'package:cuebox/app.dart';
+import 'package:cuebox/core/theme.dart';
+import 'package:cuebox/core/theme_controller.dart';
+import 'package:cuebox/features/media/media_models.dart';
+import 'package:cuebox/features/media/media_providers.dart';
 import 'package:cuebox/features/show/show_models.dart';
 import 'package:cuebox/features/show/show_providers.dart';
 
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    setCueBoxTheme(CueBoxThemeMode.dark);
   });
 
   testWidgets('CueBox 骨架可以构建并显示主框架', (tester) async {
@@ -50,6 +55,7 @@ void main() {
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
     expect(find.text('清空演出数据'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('关于'), 200);
     expect(find.text('关于'), findsOneWidget);
   });
 
@@ -395,5 +401,168 @@ void main() {
     expect(show.defaultFadeOutMs, 700);
     expect(show.defaultLoop, isTrue);
     expect(show.cues.single.followGlobal, isTrue);
+  });
+
+  test('主题切换会更新全局取色并持久化', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    // 初始为深色。
+    expect(currentThemeMode, CueBoxThemeMode.dark);
+
+    // 切到玻璃：全局取色与 provider 状态同步更新。
+    await container
+        .read(themeModeProvider.notifier)
+        .setMode(CueBoxThemeMode.glass);
+    expect(currentThemeMode, CueBoxThemeMode.glass);
+    expect(container.read(themeModeProvider), CueBoxThemeMode.glass);
+    expect(CueBoxColors.background, isNot(CueBoxColors.backgroundTop));
+
+    // 切回深色。
+    await container
+        .read(themeModeProvider.notifier)
+        .setMode(CueBoxThemeMode.dark);
+    expect(currentThemeMode, CueBoxThemeMode.dark);
+    expect(container.read(themeModeProvider), CueBoxThemeMode.dark);
+
+    // 持久化已写入 prefs。
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(kThemeModePrefsKey), CueBoxThemeMode.dark.name);
+  });
+
+  test('restoreThemeMode 从本地恢复上次主题', () async {
+    SharedPreferences.setMockInitialValues({
+      kThemeModePrefsKey: CueBoxThemeMode.glass.name,
+    });
+    setCueBoxTheme(CueBoxThemeMode.dark);
+    await restoreThemeMode();
+    expect(currentThemeMode, CueBoxThemeMode.glass);
+  });
+
+  test('restoreThemeMode 把旧版明亮主题迁移为浅色', () async {
+    SharedPreferences.setMockInitialValues({
+      kThemeModePrefsKey: 'light',
+    });
+    setCueBoxTheme(CueBoxThemeMode.dark);
+    await restoreThemeMode();
+    expect(currentThemeMode, CueBoxThemeMode.glass);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(kThemeModePrefsKey), CueBoxThemeMode.glass.name);
+  });
+
+  testWidgets('设置页展示两种主题并可切换', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: CueBoxApp()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('主菜单'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('设置'));
+    await tester.pumpAndSettle();
+
+    // 外观区块展示两种主题（明亮已并入浅色）。
+    expect(find.text('深色'), findsOneWidget);
+    expect(find.text('明亮'), findsNothing);
+    expect(find.text('浅色'), findsOneWidget);
+
+    // 点击切换为浅色。
+    await tester.tap(find.text('浅色'));
+    await tester.pumpAndSettle();
+    expect(currentThemeMode, CueBoxThemeMode.glass);
+
+    // 切换主题后仍停留在设置页（导航栈不被重置）。
+    expect(find.text('设置'), findsOneWidget);
+    expect(find.text('素材文件夹'), findsOneWidget);
+  });
+
+  testWidgets('状态栏图标亮度跟随主题（深色用浅色图标，玻璃用深色图标）', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: CueBoxApp()));
+    await tester.pumpAndSettle();
+
+    SystemUiOverlayStyle overlayStyleOf() {
+      final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+        find.ancestor(
+          of: find.byType(MaterialApp),
+          matching: find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
+        ).first,
+      );
+      return region.value;
+    }
+
+    // 深色主题：状态栏应为浅色图标（白色）。
+    expect(overlayStyleOf().statusBarIconBrightness, Brightness.light);
+
+    // 切到玻璃：状态栏改为深色图标（黑色）。
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
+    await container
+        .read(themeModeProvider.notifier)
+        .setMode(CueBoxThemeMode.glass);
+    await tester.pumpAndSettle();
+    expect(overlayStyleOf().statusBarIconBrightness, Brightness.dark);
+
+    // 切回深色：恢复浅色图标。
+    await container
+        .read(themeModeProvider.notifier)
+        .setMode(CueBoxThemeMode.dark);
+    await tester.pumpAndSettle();
+    expect(overlayStyleOf().statusBarIconBrightness, Brightness.light);
+  });
+
+  test('素材根目录支持添加多个并持久化', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    // 初始为空。
+    final roots = await container.read(mediaRootProvider.future);
+    expect(roots, isEmpty);
+
+    // 直接写入持久化，模拟两个已选文件夹。
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'media.rootUris',
+      '[{"uri":"content://tree/a","name":"演出A"},{"uri":"content://tree/b","name":"演出B"}]',
+    );
+    container.invalidate(mediaRootProvider);
+    final restored = await container.read(mediaRootProvider.future);
+    expect(restored.length, 2);
+    expect(restored[0].name, '演出A');
+    expect(restored[1].name, '演出B');
+  });
+
+  test('旧版单根目录数据自动迁移到多根格式', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('media.rootUri', 'content://tree/legacy');
+    container.invalidate(mediaRootProvider);
+    final roots = await container.read(mediaRootProvider.future);
+    expect(roots.length, 1);
+    expect(roots.first.uri, 'content://tree/legacy');
+    // 迁移后旧键被移除、新键写入。
+    expect(prefs.getString('media.rootUri'), isNull);
+    expect(prefs.getString('media.rootUris'), contains('content://tree/legacy'));
+  });
+
+  test('最后导入目录可记忆与恢复', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    // 模拟在 根A/子文件夹 导入过音频。
+    final path = [
+      MediaItem(uri: 'content://tree/a', name: '根A', isDirectory: true, size: 0, mime: ''),
+      MediaItem(uri: 'content://tree/a/doc/1', name: '子文件夹', isDirectory: true, size: 0, mime: ''),
+    ];
+    await container.read(lastImportPathProvider.notifier).remember(path);
+
+    final saved = await container.read(lastImportPathProvider.future);
+    expect(saved.length, 2);
+    expect(saved.first.name, '根A');
+    expect(saved.last.name, '子文件夹');
+
+    // 重建 container 后仍能恢复。
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('media.lastImportPath'), contains('子文件夹'));
   });
 }

@@ -2,15 +2,18 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../../core/theme.dart';
+import '../../core/theme_controller.dart';
 import '../platform/audio_uri.dart';
-import '../theme.dart';
 import 'audio_trim_waveform.dart';
+import 'cuebox_background.dart';
 
 /// 全屏波形微调页：长按小波形后进入，支持拖动手柄、点按设置试听起点、
 /// 从任意位置试听、一键把试听点设为起点。
-class WaveformFullscreenPage extends StatefulWidget {
+class WaveformFullscreenPage extends ConsumerStatefulWidget {
   const WaveformFullscreenPage({
     super.key,
     required this.uri,
@@ -66,10 +69,11 @@ class WaveformFullscreenPage extends StatefulWidget {
   }
 
   @override
-  State<WaveformFullscreenPage> createState() => _WaveformFullscreenPageState();
+  ConsumerState<WaveformFullscreenPage> createState() =>
+      _WaveformFullscreenPageState();
 }
 
-class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
+class _WaveformFullscreenPageState extends ConsumerState<WaveformFullscreenPage> {
   late int _startMs;
   late int _endMs;
   int? _previewStartMs;
@@ -178,50 +182,53 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: CueBoxColors.background,
-      appBar: AppBar(
-        title: Text('微调播放区间'),
-        leading: IconButton(
-          tooltip: '返回',
-          icon: Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          TextButton(
+    // 监听主题：切主题时重建本页刷新静态取色。
+    ref.watch(themeModeProvider);
+    return CueBoxBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text('微调播放区间'),
+          leading: IconButton(
+            tooltip: '返回',
+            icon: Icon(Icons.close),
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('完成'),
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.touch_app_outlined,
-                    size: 14,
-                    color: CueBoxColors.textFaint,
-                  ),
-                  SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      '点按波形设置试听起点，拖动左右手柄微调播放区间',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: CueBoxColors.textFaint,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('完成'),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.touch_app_outlined,
+                      size: 14,
+                      color: CueBoxColors.textFaint,
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '点按波形设置试听起点，拖动左右手柄微调播放区间',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: CueBoxColors.textFaint,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 12),
-              StreamBuilder<Duration>(
-                key: ValueKey('fs_preview_$_previewing'),
+                  ],
+                ),
+                SizedBox(height: 12),
+                StreamBuilder<Duration>(
+                  key: ValueKey('fs_preview_$_previewing'),
                 stream: _player?.positionStream,
                 builder: (_, posSnap) {
                   final playFrom = _previewStartMs ?? _startMs;
@@ -397,6 +404,7 @@ class _WaveformFullscreenPageState extends State<WaveformFullscreenPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

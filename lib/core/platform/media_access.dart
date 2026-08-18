@@ -77,20 +77,26 @@ class SafMediaAccess implements MediaAccess {
 }
 
 class LocalMediaAccess implements MediaAccess {
-  /// 桌面端默认素材目录：~/Music/CueBox。
+  /// 桌面端默认素材目录：~/Music/CueBox（跨平台路径拼接）。
   static String defaultRootPath() {
     final home =
         Platform.environment['USERPROFILE'] ??
         Platform.environment['HOME'] ??
         '';
-    return '$home/Music/CueBox';
+    return '$home${Platform.pathSeparator}Music${Platform.pathSeparator}CueBox';
   }
 
   @override
   Future<String?> pickDirectory() async => null; // 桌面端无系统目录选择器，使用默认目录
 
   @override
-  Future<String?> getTreeName(String uri) async => uri.split('/').last;
+  Future<String?> getTreeName(String uri) async {
+    // 兼容 Windows（\）与 macOS/Linux（/）分隔符，并跳过目录末尾分隔符。
+    final norm = uri.replaceAll('\\', '/');
+    final trimmed = norm.endsWith('/') ? norm.substring(0, norm.length - 1) : norm;
+    final name = trimmed.split('/').last;
+    return name.isEmpty ? null : name;
+  }
 
   @override
   Future<List<double>?> extractWaveform(String uri, int peakCount) async {
@@ -198,7 +204,11 @@ class LocalMediaAccess implements MediaAccess {
     final children = <MediaEntry>[];
     if (!dir.existsSync()) return children;
     await for (final entity in dir.list(followLinks: false)) {
-      final name = entity.uri.pathSegments.last;
+      // 用 basename 而非 pathSegments.last：目录 URI 末尾带 "/"，
+      // pathSegments.last 会得到空字符串。
+      final name = entity.uri.pathSegments
+          .where((s) => s.isNotEmpty)
+          .last;
       if (entity is Directory) {
         children.add(
           MediaEntry(

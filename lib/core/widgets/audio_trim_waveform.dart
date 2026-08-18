@@ -159,7 +159,7 @@ class _Handle extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Icon(icon, size: 15, color: Color(0xFF0A0E13)),
+        child: Icon(icon, size: 15, color: CueBoxColors.onAccent),
       ),
     );
   }

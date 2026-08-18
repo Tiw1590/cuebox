@@ -1,5 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
+
+/// 主题风格。
+enum CueBoxThemeMode {
+  /// 深色（默认）：舞台暗光、高对比。
+  dark('深色', '舞台暗光 · 高对比', Icons.dark_mode_rounded),
+
+  /// 浅色：清爽通透的浅色玻璃质感（Liquid Glass 风格）。
+  glass('浅色', '柔和通透 · 玻璃质感', Icons.light_mode_rounded);
+
+  const CueBoxThemeMode(this.label, this.subtitle, this.icon);
+
+  final String label;
+  final String subtitle;
+  final IconData icon;
+}
 
 /// 一套完整的配色。
 class CueBoxPalette {
@@ -62,36 +78,47 @@ const _darkPalette = CueBoxPalette(
   navBar: Color(0xFF0D131B),
 );
 
-const _lightPalette = CueBoxPalette(
-  background: Color(0xFFF4F6FA),
-  backgroundTop: Color(0xFFE9EEF6),
-  surface: Color(0xFFFFFFFF),
-  surfaceHigh: Color(0xFFF0F3F8),
-  surfacePressed: Color(0xFFE2E8F0),
-  primary: Color(0xFF0E9FD8),
-  primaryDeep: Color(0xFF0B7FB0),
-  secondary: Color(0xFF7C5CFF),
-  amber: Color(0xFFE8A020),
-  danger: Color(0xFFE5484D),
-  success: Color(0xFF2FA84F),
-  textPrimary: Color(0xFF121826),
-  textSecondary: Color(0xFF55657A),
-  textFaint: Color(0xFF8A99AC),
-  border: Color(0x14000000),
-  borderStrong: Color(0x26000000),
-  navBar: Color(0xFFFFFFFF),
+/// 浅色主题（Liquid Glass 风格）：半透明玻璃表面、柔和蓝紫渐变、
+/// 白色高光描边，主色采用 Apple 系统蓝 / 紫 / 橙。
+const _glassPalette = CueBoxPalette(
+  background: Color(0xFFECE4FA), // 底部：淡紫
+  backgroundTop: Color(0xFFD8E6FF), // 顶部：天蓝
+  surface: Color(0xB3FFFFFF), // 70% 白玻璃，透出下层渐变
+  surfaceHigh: Color(0xCCFFFFFF), // 80% 白，更实
+  surfacePressed: Color(0x8CFFFFFF),
+  primary: Color(0xFF0A84FF), // Apple 蓝
+  primaryDeep: Color(0xFF0059D6),
+  secondary: Color(0xFFAF52DE), // Apple 紫
+  amber: Color(0xFFFF9F0A), // Apple 橙
+  danger: Color(0xFFFF3B30), // Apple 红
+  success: Color(0xFF34C759), // Apple 绿
+  textPrimary: Color(0xFF1D1D1F), // Apple 墨色
+  textSecondary: Color(0xFF5F6672),
+  textFaint: Color(0xFF9AA3AF),
+  border: Color(0x66FFFFFF), // 白色高光描边
+  borderStrong: Color(0x99FFFFFF),
+  navBar: Color(0xD9E8EDF5), // 半透明玻璃导航
 );
 
-bool _dark = true;
+CueBoxThemeMode _mode = CueBoxThemeMode.dark;
 
-/// 设置当前明暗（由主题控制器调用，页面取色用）。
-void setCueBoxBrightness({required bool dark}) {
-  _dark = dark;
+/// 当前主题模式（由主题控制器切换，页面取色用）。
+CueBoxThemeMode get currentThemeMode => _mode;
+
+/// 设置当前主题风格。
+void setCueBoxTheme(CueBoxThemeMode mode) {
+  _mode = mode;
 }
 
-CueBoxPalette get _palette => _dark ? _darkPalette : _lightPalette;
+/// 各风格对应的调色板（设置页预览也用）。
+CueBoxPalette paletteForMode(CueBoxThemeMode mode) => switch (mode) {
+  CueBoxThemeMode.dark => _darkPalette,
+  CueBoxThemeMode.glass => _glassPalette,
+};
 
-/// CueBox 设计令牌：深/浅两套调色板，随主题切换动态取色。
+CueBoxPalette get _palette => paletteForMode(_mode);
+
+/// CueBox 设计令牌：随主题动态取色。
 abstract final class CueBoxColors {
   static Color get background => _palette.background;
   static Color get backgroundTop => _palette.backgroundTop;
@@ -111,6 +138,17 @@ abstract final class CueBoxColors {
   static Color get textFaint => _palette.textFaint;
   static Color get border => _palette.border;
   static Color get borderStrong => _palette.borderStrong;
+
+  /// 主色 / 强调渐变之上的前景文字色（按钮、图标等）。
+  static Color get onAccent => _mode == CueBoxThemeMode.dark
+      ? const Color(0xFF002A36)
+      : Colors.white;
+
+  /// 播放中高亮色：柔和的淡蓝色，比主色更安静、不刺眼。
+  static Color get playHighlight => switch (_mode) {
+    CueBoxThemeMode.dark => const Color(0xFF7CC5F0),
+    CueBoxThemeMode.glass => const Color(0xFF6FB6E8),
+  };
 
   static LinearGradient get accentGradient => LinearGradient(
         begin: Alignment.centerLeft,
@@ -132,14 +170,18 @@ abstract final class CueBoxColors {
       );
 }
 
-ThemeData _buildTheme(CueBoxPalette palette) {
-  final dark = palette == _darkPalette;
+ThemeData _buildTheme(CueBoxThemeMode mode) {
+  final palette = paletteForMode(mode);
+  final dark = mode == CueBoxThemeMode.dark;
+  final glass = mode == CueBoxThemeMode.glass;
+  // 玻璃/明亮主题下，主色上的前景文字用白色更贴近 Apple 观感。
+  final onAccent = dark ? const Color(0xFF002A36) : Colors.white;
   final colorScheme = ColorScheme.fromSeed(
     seedColor: palette.primary,
     brightness: dark ? Brightness.dark : Brightness.light,
   ).copyWith(
     primary: palette.primary,
-    onPrimary: Color(0xFF002A36),
+    onPrimary: onAccent,
     secondary: palette.secondary,
     surface: palette.surface,
     surfaceContainerHighest: palette.surfaceHigh,
@@ -191,6 +233,11 @@ ThemeData _buildTheme(CueBoxPalette palette) {
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
+      // 状态栏图标亮度跟随主题：深色用浅色图标（白），亮色用深色图标（黑）。
+      // MaterialApp 会读取此值并应用到系统状态栏。
+      systemOverlayStyle: dark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
       titleTextStyle: TextStyle(
         color: palette.textPrimary,
         fontSize: 20,
@@ -204,10 +251,12 @@ ThemeData _buildTheme(CueBoxPalette palette) {
     cardTheme: CardThemeData(
       color: palette.surface,
       surfaceTintColor: Colors.transparent,
-      elevation: 0,
+      // 玻璃主题：微浮起 + 柔和阴影，更像真实的玻璃层。
+      elevation: glass ? 1 : 0,
+      shadowColor: glass ? const Color(0x330A84FF) : Colors.transparent,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(glass ? 22 : 18),
         side: BorderSide(color: palette.border),
       ),
     ),
@@ -245,7 +294,7 @@ ThemeData _buildTheme(CueBoxPalette palette) {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: palette.primary,
-        foregroundColor: Color(0xFF002A36),
+        foregroundColor: onAccent,
         elevation: 0,
         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -286,7 +335,7 @@ ThemeData _buildTheme(CueBoxPalette palette) {
       surfaceTintColor: Colors.transparent,
       modalBackgroundColor: palette.surfaceHigh,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(glass ? 32 : 28)),
       ),
       showDragHandle: true,
       dragHandleColor: Color(0x33000000),
@@ -295,7 +344,7 @@ ThemeData _buildTheme(CueBoxPalette palette) {
     dialogTheme: DialogThemeData(
       backgroundColor: palette.surfaceHigh,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(glass ? 28 : 24)),
     ),
 
     snackBarTheme: SnackBarThemeData(
@@ -338,7 +387,7 @@ ThemeData _buildTheme(CueBoxPalette palette) {
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
-            ? Color(0xFF002A36)
+            ? onAccent
             : palette.textFaint,
       ),
       trackColor: WidgetStateProperty.resolveWith(
@@ -375,8 +424,6 @@ ThemeData _buildTheme(CueBoxPalette palette) {
   );
 }
 
-/// 深色主题（默认）。
-ThemeData buildCueBoxTheme() => _buildTheme(_darkPalette);
-
-/// 浅色（白色）主题。
-ThemeData buildLightCueBoxTheme() => _buildTheme(_lightPalette);
+/// 按主题风格构建 ThemeData。
+ThemeData buildCueBoxTheme([CueBoxThemeMode mode = CueBoxThemeMode.dark]) =>
+    _buildTheme(mode);

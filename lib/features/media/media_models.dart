@@ -6,6 +6,13 @@ class MediaRoot {
 
   final String uri;
   final String name;
+
+  Map<String, dynamic> toJson() => {'uri': uri, 'name': name};
+
+  factory MediaRoot.fromJson(Map<String, dynamic> json) => MediaRoot(
+        uri: json['uri'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+      );
 }
 
 /// 素材池中的一个条目（文件夹或音频文件）。
@@ -45,6 +52,18 @@ class MediaItem {
       mime: '',
     );
   }
+
+  /// 序列化浏览路径中的一截（用于记忆最后导入的目录）。
+  Map<String, dynamic> toPathJson() => {'uri': uri, 'name': name};
+
+  /// 从序列化恢复路径节点（一律按文件夹处理）。
+  factory MediaItem.fromPathJson(Map<String, dynamic> json) => MediaItem(
+        uri: json['uri'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        isDirectory: true,
+        size: 0,
+        mime: '',
+      );
 }
 
 /// 素材浏览状态：当前路径（从根目录到当前文件夹）+ 当前文件夹的子项。

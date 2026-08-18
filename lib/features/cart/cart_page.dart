@@ -475,6 +475,8 @@ class _SlotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 播放态用淡蓝色：比主色柔和，不突兀。
+    final playColor = CueBoxColors.playHighlight;
     return AnimatedContainer(
       duration: Duration(milliseconds: 220),
       curve: Curves.easeOut,
@@ -483,16 +485,28 @@ class _SlotCard extends StatelessWidget {
             ? LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0x2E38E1FF), Color(0x1EA78BFA)],
+                colors: [
+                  playColor.withValues(alpha: 0.18),
+                  playColor.withValues(alpha: 0.08),
+                ],
               )
             : null,
         color: isPlaying ? null : CueBoxColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isPlaying ? CueBoxColors.primary : CueBoxColors.border,
+          color: isPlaying ? playColor : CueBoxColors.border,
           width: isPlaying ? 1.3 : 1,
         ),
-        boxShadow: isPlaying ? [CueBoxColors.glow] : null,
+        boxShadow: isPlaying
+            ? [
+                BoxShadow(
+                  color: playColor.withValues(alpha: 0.25),
+                  blurRadius: 28,
+                  spreadRadius: 0,
+                  offset: Offset(0, 8),
+                ),
+              ]
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -537,13 +551,13 @@ class _SlotCard extends StatelessWidget {
                     ),
                     Spacer(),
                     if (isPlaying)
-                      PlayingIndicator(size: 28)
+                      PlayingIndicator(size: 28, color: playColor)
                     else
                       Icon(
                         Icons.music_note_rounded,
                         size: 34,
                         color: isPlaying
-                            ? CueBoxColors.primary
+                            ? playColor
                             : CueBoxColors.textFaint,
                       ),
                     SizedBox(height: 10),

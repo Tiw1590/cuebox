@@ -6,12 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 
 import '../../core/theme.dart';
+import '../../core/theme_controller.dart';
 import '../../core/widgets/cuebox_background.dart';
 import '../../core/platform/media_access.dart';
 import '../cart/cart_page.dart';
 import '../cue/cue_controller.dart';
 import '../cue/cue_list_page.dart';
 import '../media/media_library_page.dart';
+import '../media/media_models.dart';
 import '../media/media_providers.dart';
 import '../playback/playback_engine.dart';
 import '../settings/settings_page.dart';
@@ -73,6 +75,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    // 监听主题：主题切换时重建本页（含 Cue/Cart 列表）刷新静态取色。
+    ref.watch(themeModeProvider);
     final libAsync = ref.watch(showProvider);
     final lib = libAsync.valueOrNull;
     final show = lib?.activeShow;
@@ -89,28 +93,29 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       }
     });
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: InkWell(
-          onTap: _openShowSwitcher,
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  kind == ShowKind.cue
-                      ? Icons.view_list_rounded
-                      : Icons.grid_view_rounded,
-                  size: 18,
-                  color: kind == ShowKind.cue
-                      ? CueBoxColors.primary
-                      : CueBoxColors.secondary,
-                ),
-                SizedBox(width: 7),
-                Flexible(
+    return CueBoxBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: InkWell(
+            onTap: _openShowSwitcher,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    kind == ShowKind.cue
+                        ? Icons.view_list_rounded
+                        : Icons.grid_view_rounded,
+                    size: 18,
+                    color: kind == ShowKind.cue
+                        ? CueBoxColors.primary
+                        : CueBoxColors.secondary,
+                  ),
+                  SizedBox(width: 7),
+                  Flexible(
                   child: Text(
                     showName,
                     maxLines: 1,
@@ -200,12 +205,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       body: _wrapShortcuts(
         kind: kind,
         lib: lib,
-        child: CueBoxBackground(
-          child: IndexedStack(
-            index: kind == ShowKind.cart ? 1 : 0,
-            children: [CueListPage(), CartPage()],
-          ),
+        child: IndexedStack(
+          index: kind == ShowKind.cart ? 1 : 0,
+          children: [CueListPage(), CartPage()],
         ),
+      ),
       ),
     );
   }
@@ -327,45 +331,26 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       return;
     }
 
-    // 确保素材根目录存在（桌面端默认 ~/Music/CueBox）。
-    var rootPath = ref.read(mediaRootProvider).valueOrNull?.uri;
-    if (rootPath == null) {
-      await ref.read(mediaRootProvider.notifier).pick();
-      rootPath = ref.read(mediaRootProvider).valueOrNull?.uri;
+    // 收集音频文件所在的真实文件夹（去重），自动加入素材根目录。
+    // 桌面端素材库文件夹直接链接到真实目录，无需复制文件。
+    final sourceDirs = <String>{};
+    for (final f in audioFiles) {
+      try {
+        sourceDirs.add(File(f.path).parent.path);
+      } catch (_) {}
     }
-    rootPath ??= LocalMediaAccess.defaultRootPath();
-    log.writeln('rootPath: $rootPath');
-    try {
-      Directory(rootPath).createSync(recursive: true);
-    } catch (e) {
-      log.writeln('createRoot FAIL: $e');
+    final addedRoots = <MediaRoot>[];
+    for (final dir in sourceDirs) {
+      log.writeln('source dir: $dir');
+      final root = await ref.read(mediaRootProvider.notifier).addLocalRoot(dir);
+      if (root != null) addedRoots.add(root);
     }
 
-    final imported = <({String uri, String name})>[];
-    for (final f in audioFiles) {
-      log.writeln(
-        'file: name="${f.name}" path="${f.path}" exists=${File(f.path).existsSync()}',
-      );
-      // 同名且大小一致 → 复用已有文件，避免重复复制。
-      final existing = File('$rootPath${Platform.pathSeparator}${f.name}');
-      if (existing.existsSync()) {
-        try {
-          if (existing.lengthSync() == File(f.path).lengthSync()) {
-            imported.add((uri: existing.path, name: f.name));
-            log.writeln('  -> reused ${existing.path}');
-            continue;
-          }
-        } catch (_) {}
-      }
-      final dest = _uniquePath(rootPath, f.name);
-      try {
-        await File(f.path).copy(dest);
-        imported.add((uri: dest, name: f.name));
-        log.writeln('  -> copied $dest');
-      } catch (e) {
-        log.writeln('  -> COPY FAIL: $e');
-      }
-    }
+    // 直接用原路径加入 Cue / Card（不复制）。
+    final imported = <({String uri, String name})>[
+      for (final f in audioFiles) (uri: f.path, name: f.name),
+    ];
+    log.writeln('imported ${imported.length} files (linked, no copy)');
     if (imported.isEmpty) {
       _showSnack('导入失败');
       _writeDropLog(log.toString());
@@ -380,8 +365,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         await ref.read(showProvider.notifier).addCartSlots(imported);
       }
     }
+
+    // 记住最后导入目录：优先用第一个音频所在文件夹。
+    if (addedRoots.isNotEmpty) {
+      ref
+          .read(lastImportPathProvider.notifier)
+          .remember([MediaItem.root(addedRoots.first)]);
+    }
+
     _showSnack(
-      '已导入 ${imported.length} 个音频到 ${show?.kind == ShowKind.cue ? 'Cue 列表' : 'Pad'}',
+      '已导入 ${imported.length} 个音频到 ${show?.kind == ShowKind.cue ? 'Cue 列表' : 'Pad'}，'
+      '素材库已添加 ${addedRoots.length} 个文件夹',
     );
     try {
       await ref.read(mediaBrowseProvider.notifier).refresh();
@@ -396,20 +390,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       logFile.parent.createSync(recursive: true);
       logFile.writeAsStringSync(content, mode: FileMode.append);
     } catch (_) {}
-  }
-
-  String _uniquePath(String dir, String name) {
-    var candidate = '$dir${Platform.pathSeparator}$name';
-    if (!File(candidate).existsSync()) return candidate;
-    final dot = name.lastIndexOf('.');
-    final base = dot > 0 ? name.substring(0, dot) : name;
-    final ext = dot > 0 ? name.substring(dot) : '';
-    var i = 1;
-    do {
-      candidate = '$dir${Platform.pathSeparator}$base ($i)$ext';
-      i++;
-    } while (File(candidate).existsSync());
-    return candidate;
   }
 
   void _showSnack(String message) {
@@ -903,7 +883,9 @@ class _DropOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: Color(0x990A0E13),
+      color: currentThemeMode == CueBoxThemeMode.dark
+          ? Color(0x990A0E13)
+          : Color(0x33FFFFFF),
       child: Center(
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 32, vertical: 24),
