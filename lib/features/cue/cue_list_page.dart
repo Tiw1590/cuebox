@@ -31,6 +31,30 @@ class _CueListPageState extends ConsumerState<CueListPage> {
     setState(() => _inspectorOpen = true);
   }
 
+    void _openControlInspectorFor(Cue cue) {
+      ref.read(cueControllerProvider.notifier).select(cue.id);
+      setState(() => _inspectorOpen = true);
+    }
+
+    void _saveControlPanel(Cue cue, _ControlCueResult r) {
+      ref
+          .read(showProvider.notifier)
+          .updateCue(
+            cue.copyWith(
+              name: r.name,
+              controlAction: r.action,
+              controlTargetCueId: r.targetCueId,
+              preWaitMs: r.preWaitMs,
+              postWaitMs: r.postWaitMs,
+              fadeInMs: r.fadeInMs,
+              fadeOutMs: r.fadeOutMs,
+              autoNext: r.autoNext,
+              playNextTogether: r.playNextTogether,
+              demoted: r.demoted,
+            ),
+          );
+    }
+
   void _savePanel(Cue cue, SlotEditResult r) {
     ref
         .read(showProvider.notifier)
@@ -107,36 +131,6 @@ class _CueListPageState extends ConsumerState<CueListPage> {
         );
   }
 
-  Future<void> _editControlCue(Cue cue) async {
-    final show = ref.read(activeShowProvider).valueOrNull;
-    if (show == null) return;
-    final result = await showModalBottomSheet<_ControlCueResult>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _ControlCueEditor(
-        cue: cue,
-        audioCues: show.cues.where((c) => c.controlAction == null).toList(),
-      ),
-    );
-    if (result == null) return;
-    await ref
-        .read(showProvider.notifier)
-        .updateCue(
-          cue.copyWith(
-            name: result.name,
-            controlAction: result.action,
-            controlTargetCueId: result.targetCueId,
-            preWaitMs: result.preWaitMs,
-            postWaitMs: result.postWaitMs,
-            fadeInMs: result.fadeInMs,
-            fadeOutMs: result.fadeOutMs,
-            autoNext: result.autoNext,
-            playNextTogether: result.playNextTogether,
-            demoted: result.demoted,
-          ),
-        );
-  }
-
   Future<void> _confirmClearAll() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -195,7 +189,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
           onEditSelected: () {
             if (selected != null) {
               if (selected.controlAction != null) {
-                _editControlCue(selected);
+                _openControlInspectorFor(selected);
               } else {
                 _openInspectorFor(selected);
               }
@@ -253,34 +247,43 @@ class _CueListPageState extends ConsumerState<CueListPage> {
       ],
     );
 
+    final audioCues = show?.cues.where((c) => c.controlAction == null).toList() ?? const <Cue>[];
     final inspector = (!locked && _inspectorOpen && selected != null)
-        ? AudioSlotEditorPanel(
-            key: ValueKey(selected.id),
-            title: '编辑参数',
-            initialName: selected.name,
-            initialNote: selected.note,
-            initialVolume: selected.volume,
-            initialFadeInMs: selected.fadeInMs,
-            initialFadeOutMs: selected.fadeOutMs,
-            initialLoop: selected.loop,
-            initialSolo: true,
-            showNote: true,
-            showTrim: true,
-            waveformUri: selected.uri,
-            initialStartMs: selected.startMs,
-            initialEndMs: selected.endMs,
-            showWait: true,
-            initialPreWaitMs: selected.preWaitMs,
-            initialPostWaitMs: selected.postWaitMs,
-            showFollowGlobal: true,
-            initialFollowGlobal: selected.followGlobal,
-            globalVolume: show?.defaultVolume ?? 1.0,
-            globalFadeInMs: show?.defaultFadeInMs ?? 20,
-            globalFadeOutMs: show?.defaultFadeOutMs ?? 150,
-            globalLoop: show?.defaultLoop ?? false,
-            onCancel: () => setState(() => _inspectorOpen = false),
-            onSave: (r) => _savePanel(selected, r),
-          )
+        ? (selected.controlAction != null
+            ? _ControlCueEditor(
+                key: ValueKey(selected.id),
+                cue: selected,
+                audioCues: audioCues,
+                onSave: (r) => _saveControlPanel(selected, r),
+                onCancel: () => setState(() => _inspectorOpen = false),
+              )
+            : AudioSlotEditorPanel(
+                key: ValueKey(selected.id),
+                title: '编辑参数',
+                initialName: selected.name,
+                initialNote: selected.note,
+                initialVolume: selected.volume,
+                initialFadeInMs: selected.fadeInMs,
+                initialFadeOutMs: selected.fadeOutMs,
+                initialLoop: selected.loop,
+                initialSolo: true,
+                showNote: true,
+                showTrim: true,
+                waveformUri: selected.uri,
+                initialStartMs: selected.startMs,
+                initialEndMs: selected.endMs,
+                showWait: true,
+                initialPreWaitMs: selected.preWaitMs,
+                initialPostWaitMs: selected.postWaitMs,
+                showFollowGlobal: true,
+                initialFollowGlobal: selected.followGlobal,
+                globalVolume: show?.defaultVolume ?? 1.0,
+                globalFadeInMs: show?.defaultFadeInMs ?? 20,
+                globalFadeOutMs: show?.defaultFadeOutMs ?? 150,
+                globalLoop: show?.defaultLoop ?? false,
+                onCancel: () => setState(() => _inspectorOpen = false),
+                onSave: (r) => _savePanel(selected, r),
+              ))
         : null;
 
     return LayoutBuilder(
@@ -385,7 +388,7 @@ class _CueListPageState extends ConsumerState<CueListPage> {
                   .read(cueControllerProvider.notifier)
                   .select(selected ? '' : tileCue.id),
               onEdit: () => tileCue.controlAction != null
-                  ? _editControlCue(tileCue)
+                  ? _openControlInspectorFor(tileCue)
                   : _openInspectorFor(tileCue),
               onToggleAutoNext: () => ref
                   .read(showProvider.notifier)
@@ -1359,28 +1362,36 @@ class _CueTileState extends State<_CueTile> {
       decoration: merged
           ? BoxDecoration(
               color: selected
-                  ? CueBoxColors.primary.withValues(alpha: 0.10)
+                  ? CueBoxColors.primary.withValues(alpha: 0.12)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
             )
           : BoxDecoration(
-              color: selected
-                  ? CueBoxColors.primary.withValues(alpha: 0.08)
-                  : CueBoxColors.surface,
+              gradient: selected
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        CueBoxColors.primary.withValues(alpha: 0.14),
+                        CueBoxColors.surfaceHigh,
+                      ],
+                    )
+                  : CueBoxColors.surfaceGradient,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: selected ? CueBoxColors.primary : CueBoxColors.border,
-                width: selected ? 1.2 : 1,
+                width: selected ? 1.4 : 1,
               ),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: CueBoxColors.primary.withValues(alpha: 0.10),
-                        blurRadius: 24,
-                        spreadRadius: -2,
-                      ),
-                    ]
-                  : null,
+              boxShadow: [
+                CueBoxColors.ambientShadow,
+                if (CueBoxColors.isGlass)
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    blurRadius: 2,
+                    spreadRadius: -1,
+                  ),
+                if (selected) CueBoxColors.selectionGlow,
+              ],
             ),
       child: Material(
         color: Colors.transparent,
@@ -1724,6 +1735,20 @@ class _IndexBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(11),
         gradient: selected ? CueBoxColors.accentGradient : null,
         color: selected ? null : CueBoxColors.surfacePressed,
+        border: Border.all(
+          color: selected ? Colors.white.withValues(alpha: 0.45) : Colors.transparent,
+          width: 1,
+        ),
+        boxShadow: selected
+            ? [
+                BoxShadow(
+                  color: CueBoxColors.primary.withValues(alpha: 0.28),
+                  blurRadius: 14,
+                  spreadRadius: -2,
+                  offset: Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: demoted
           ? Icon(Icons.circle, size: 6, color: CueBoxColors.textFaint)
@@ -1809,21 +1834,18 @@ class _CueHeader extends StatelessWidget {
       margin: EdgeInsets.fromLTRB(16, 8, 16, 2),
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: CueBoxColors.surface,
+        gradient: CueBoxColors.surfaceGradient,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: selected != null
               ? CueBoxColors.primary.withValues(alpha: 0.55)
               : CueBoxColors.border,
+          width: selected != null ? 1.2 : 1,
         ),
-        boxShadow: selected != null
-            ? [
-                BoxShadow(
-                  color: CueBoxColors.primary.withValues(alpha: 0.08),
-                  blurRadius: 20,
-                ),
-              ]
-            : null,
+        boxShadow: [
+          CueBoxColors.ambientShadow,
+          if (selected != null) CueBoxColors.selectionGlow,
+        ],
       ),
       child: Row(
         children: [
@@ -2058,10 +2080,18 @@ class _ControlCueResult {
 
 /// 控制 Cue 编辑面板：动作、目标、等待、淡入淡出、接/同。
 class _ControlCueEditor extends StatefulWidget {
-  const _ControlCueEditor({required this.cue, required this.audioCues});
+  const _ControlCueEditor({
+    super.key,
+    required this.cue,
+    required this.audioCues,
+    this.onSave,
+    this.onCancel,
+  });
 
   final Cue cue;
   final List<Cue> audioCues;
+  final ValueChanged<_ControlCueResult>? onSave;
+  final VoidCallback? onCancel;
 
   @override
   State<_ControlCueEditor> createState() => _ControlCueEditorState();
@@ -2103,40 +2133,75 @@ class _ControlCueEditorState extends State<_ControlCueEditor> {
   }
 
   void _save() {
-    Navigator.of(context).pop(
-      _ControlCueResult(
-        name: _nameController.text.trim().isEmpty
-            ? widget.cue.name
-            : _nameController.text.trim(),
-        action: _action,
-        targetCueId: _targetCueId,
-        preWaitMs: _preWaitMs,
-        postWaitMs: _postWaitMs,
-        fadeInMs: _fadeInMs,
-        fadeOutMs: _fadeOutMs,
-        autoNext: _autoNext,
-        playNextTogether: _together,
-        demoted: _demoted,
-      ),
+    final result = _ControlCueResult(
+      name: _nameController.text.trim().isEmpty
+          ? widget.cue.name
+          : _nameController.text.trim(),
+      action: _action,
+      targetCueId: _targetCueId,
+      preWaitMs: _preWaitMs,
+      postWaitMs: _postWaitMs,
+      fadeInMs: _fadeInMs,
+      fadeOutMs: _fadeOutMs,
+      autoNext: _autoNext,
+      playNextTogether: _together,
+      demoted: _demoted,
     );
+    final onSave = widget.onSave;
+    if (onSave != null) {
+      onSave(result);
+    } else {
+      Navigator.of(context).pop(result);
+    }
+  }
+
+  void _close() {
+    final onCancel = widget.onCancel;
+    if (onCancel != null) {
+      onCancel();
+    } else {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 4,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('控制 Cue 编辑', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '控制 Cue 编辑',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              TextButton(
+                onPressed: _close,
+                style: TextButton.styleFrom(
+                  foregroundColor: CueBoxColors.textSecondary,
+                ),
+                child: Text('关闭'),
+              ),
+              SizedBox(width: 4),
+              FilledButton.tonal(
+                onPressed: _save,
+                style: FilledButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  minimumSize: Size(0, 36),
+                  textStyle: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                child: Text('保存'),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
@@ -2238,30 +2303,9 @@ class _ControlCueEditorState extends State<_ControlCueEditor> {
               value: _demoted,
               onChanged: (v) => setState(() => _demoted = v),
             ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, size: 18),
-                    label: const Text('关闭'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: FilledButton.icon(
-                    onPressed: _save,
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('保存'),
-                  ),
-                ),
-              ],
-            ),
+
           ],
         ),
-      ),
     );
   }
 }

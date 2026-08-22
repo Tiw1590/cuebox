@@ -187,7 +187,7 @@ class SettingsPage extends ConsumerWidget {
                   ),
                   title: Text('版本'),
                   trailing: Text(
-                    '1.0.9',
+                    '2.0.1',
                     style: TextStyle(
                       color: CueBoxColors.textFaint,
                       fontSize: 13,
@@ -304,6 +304,14 @@ class _ThemePreview extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: palette.borderStrong, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: palette.primary.withValues(alpha: 0.18),
+            blurRadius: 14,
+            spreadRadius: -4,
+            offset: Offset(0, 5),
+          ),
+        ],
       ),
       child: Stack(
         children: [
@@ -354,6 +362,8 @@ class _SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: CueBoxColors.surface,
+      elevation: CueBoxColors.isGlass ? 2 : 1,
+      shadowColor: CueBoxColors.cardShadowColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
         side: BorderSide(color: CueBoxColors.border),

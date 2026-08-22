@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../core/theme_controller.dart';
 import '../../core/widgets/audio_slot_editor.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/playing_indicator.dart';
@@ -159,6 +160,8 @@ class _CartPageState extends ConsumerState<CartPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 监听主题：主题切换时重建本页（含 Pad 网格）刷新静态取色。
+    ref.watch(themeModeProvider);
     final showAsync = ref.watch(activeShowProvider);
     final playing = ref.watch(playbackEngineProvider);
     final show = showAsync.valueOrNull;
@@ -333,7 +336,9 @@ class _SlotGrid extends StatelessWidget {
         // 非锁定状态额外显示一整行空位，方便把 Pad 拖到新的一行。
         final usedCells = maxIndex + 1;
         final itemCount = usedCells + (locked ? 0 : columns);
+        // 主题切换时强制整网格重建（含空白 Pad），避免 const 占位格残留旧主题色。
         return GridView.builder(
+          key: ValueKey<CueBoxThemeMode>(currentThemeMode),
           padding: EdgeInsets.fromLTRB(16, 4, 16, 20),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
@@ -345,7 +350,7 @@ class _SlotGrid extends StatelessWidget {
           itemBuilder: (context, index) {
             final slot = byIndex[index];
             if (slot == null) {
-              if (locked) return const _EmptyPadCell();
+              if (locked) return _EmptyPadCell();
               return DragTarget<CartSlot>(
                 onAcceptWithDetails: (details) => onMove(details.data, index),
                 builder: (context, candidates, rejected) {
@@ -361,7 +366,7 @@ class _SlotGrid extends StatelessWidget {
                             ),
                           )
                         : null,
-                    child: const _EmptyPadCell(),
+                    child: _EmptyPadCell(),
                   );
                 },
               );
@@ -437,9 +442,10 @@ class _EmptyPadCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: CueBoxColors.surface.withValues(alpha: 0.35),
+        gradient: CueBoxColors.surfaceGradient,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: CueBoxColors.border),
+        boxShadow: [CueBoxColors.ambientShadow],
       ),
       child: Center(
         child: Icon(
@@ -486,27 +492,26 @@ class _SlotCard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  playColor.withValues(alpha: 0.18),
-                  playColor.withValues(alpha: 0.08),
+                  playColor.withValues(alpha: 0.22),
+                  CueBoxColors.surfaceHigh,
                 ],
               )
-            : null,
-        color: isPlaying ? null : CueBoxColors.surface,
+            : CueBoxColors.surfaceGradient,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isPlaying ? playColor : CueBoxColors.border,
-          width: isPlaying ? 1.3 : 1,
+          width: isPlaying ? 1.4 : 1,
         ),
-        boxShadow: isPlaying
-            ? [
-                BoxShadow(
-                  color: playColor.withValues(alpha: 0.25),
-                  blurRadius: 28,
-                  spreadRadius: 0,
-                  offset: Offset(0, 8),
-                ),
-              ]
-            : null,
+        boxShadow: [
+          CueBoxColors.ambientShadow,
+          if (CueBoxColors.isGlass)
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.5),
+              blurRadius: 2,
+              spreadRadius: -1,
+            ),
+          if (isPlaying) CueBoxColors.selectionGlow,
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -745,21 +750,18 @@ class _TransportBarState extends ConsumerState<_TransportBar> {
       margin: EdgeInsets.fromLTRB(16, 4, 16, 6),
       padding: EdgeInsets.fromLTRB(20, 22, 20, 18),
       decoration: BoxDecoration(
-        color: CueBoxColors.surfaceHigh,
+        gradient: CueBoxColors.surfaceGradient,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: active
-              ? CueBoxColors.primary.withValues(alpha: 0.5)
+              ? CueBoxColors.primary.withValues(alpha: 0.55)
               : CueBoxColors.border,
+          width: active ? 1.3 : 1,
         ),
-        boxShadow: active
-            ? [
-                BoxShadow(
-                  color: CueBoxColors.primary.withValues(alpha: 0.08),
-                  blurRadius: 20,
-                ),
-              ]
-            : null,
+        boxShadow: [
+          CueBoxColors.ambientShadow,
+          if (active) CueBoxColors.selectionGlow,
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

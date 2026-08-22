@@ -59,11 +59,11 @@ class CueBoxPalette {
 }
 
 const _darkPalette = CueBoxPalette(
-  background: Color(0xFF0A0E13),
-  backgroundTop: Color(0xFF0E1520),
-  surface: Color(0xFF121A24),
-  surfaceHigh: Color(0xFF1A2531),
-  surfacePressed: Color(0xFF22303F),
+  background: Color(0xFF080B12),
+  backgroundTop: Color(0xFF121D31),
+  surface: Color(0xFF121926),
+  surfaceHigh: Color(0xFF1C2634),
+  surfacePressed: Color(0xFF263342),
   primary: Color(0xFF38E1FF),
   primaryDeep: Color(0xFF0EA5D8),
   secondary: Color(0xFFA78BFA),
@@ -73,19 +73,19 @@ const _darkPalette = CueBoxPalette(
   textPrimary: Color(0xFFE8EEF5),
   textSecondary: Color(0xFF93A6BB),
   textFaint: Color(0xFF5F7186),
-  border: Color(0x1FFFFFFF),
-  borderStrong: Color(0x2FFFFFFF),
-  navBar: Color(0xFF0D131B),
+  border: Color(0x26FFFFFF),
+  borderStrong: Color(0x38FFFFFF),
+  navBar: Color(0xE60C111B),
 );
 
 /// 浅色主题（Liquid Glass 风格）：半透明玻璃表面、柔和蓝紫渐变、
 /// 白色高光描边，主色采用 Apple 系统蓝 / 紫 / 橙。
 const _glassPalette = CueBoxPalette(
-  background: Color(0xFFECE4FA), // 底部：淡紫
-  backgroundTop: Color(0xFFD8E6FF), // 顶部：天蓝
-  surface: Color(0xB3FFFFFF), // 70% 白玻璃，透出下层渐变
-  surfaceHigh: Color(0xCCFFFFFF), // 80% 白，更实
-  surfacePressed: Color(0x8CFFFFFF),
+  background: Color(0xFFF2EEFF), // 底部：淡紫白
+  backgroundTop: Color(0xFFD9E9FF), // 顶部：天蓝
+  surface: Color(0xBCFFFFFF), // 74% 白玻璃，透出下层渐变
+  surfaceHigh: Color(0xD9FFFFFF), // 85% 白，更实
+  surfacePressed: Color(0x99FFFFFF),
   primary: Color(0xFF0A84FF), // Apple 蓝
   primaryDeep: Color(0xFF0059D6),
   secondary: Color(0xFFAF52DE), // Apple 紫
@@ -95,9 +95,9 @@ const _glassPalette = CueBoxPalette(
   textPrimary: Color(0xFF1D1D1F), // Apple 墨色
   textSecondary: Color(0xFF5F6672),
   textFaint: Color(0xFF9AA3AF),
-  border: Color(0x66FFFFFF), // 白色高光描边
-  borderStrong: Color(0x99FFFFFF),
-  navBar: Color(0xD9E8EDF5), // 半透明玻璃导航
+  border: Color(0x73FFFFFF), // 白色高光描边
+  borderStrong: Color(0xA6FFFFFF),
+  navBar: Color(0xE6EDF4FF), // 半透明玻璃导航
 );
 
 CueBoxThemeMode _mode = CueBoxThemeMode.dark;
@@ -150,6 +150,59 @@ abstract final class CueBoxColors {
     CueBoxThemeMode.glass => const Color(0xFF6FB6E8),
   };
 
+    /// 当前是否为浅色玻璃主题。
+    static bool get isGlass => _mode == CueBoxThemeMode.glass;
+
+    /// 玻璃表面顶部高光（浅色更亮，深色保留极微弱的冷光）。
+    static Color get glassSheen => isGlass
+        ? Colors.white.withValues(alpha: 0.65)
+        : Colors.white.withValues(alpha: 0.03);
+
+    /// 卡片阴影颜色：玻璃主题用 Apple 蓝的柔光，深色用黑色氛围。
+    static Color get cardShadowColor => isGlass
+        ? const Color(0x2E0A84FF)
+        : const Color(0x73000000);
+
+    /// 柔和环境阴影。
+    static BoxShadow get ambientShadow => BoxShadow(
+          color: cardShadowColor,
+          blurRadius: isGlass ? 32 : 16,
+          spreadRadius: isGlass ? -4 : -2,
+          offset: Offset(0, isGlass ? 10 : 6),
+        );
+
+    /// 选中态 / 播放态辉光，用于列表项、卡片等。
+    static BoxShadow get selectionGlow => BoxShadow(
+          color: primary.withValues(alpha: isGlass ? 0.24 : 0.20),
+          blurRadius: 28,
+          spreadRadius: -4,
+          offset: Offset(0, 8),
+        );
+
+    /// 卡片表面渐变：浅色为白色玻璃从高到低的透明度，深色为细微的冷色浮层。
+    static LinearGradient get surfaceGradient => LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isGlass
+              ? [surfaceHigh, surface]
+              : [surfaceHigh, surface],
+        );
+
+    /// 玻璃卡片顶部光带（模拟 Apple Liquid Glass 的折射高光）。
+    static LinearGradient get glassHighlightGradient => LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isGlass
+              ? [
+                  Colors.white.withValues(alpha: 0.45),
+                  Colors.white.withValues(alpha: 0.02),
+                ]
+              : [
+                  Colors.white.withValues(alpha: 0.06),
+                  Colors.white.withValues(alpha: 0.0),
+                ],
+        );
+
   static LinearGradient get accentGradient => LinearGradient(
         begin: Alignment.centerLeft,
         end: Alignment.centerRight,
@@ -184,6 +237,12 @@ ThemeData _buildTheme(CueBoxThemeMode mode) {
     onPrimary: onAccent,
     secondary: palette.secondary,
     surface: palette.surface,
+    surfaceContainerLowest: glass
+        ? const Color(0xDDFFFFFF)
+        : const Color(0xFF0B1017),
+    surfaceContainerLow: palette.surface,
+    surfaceContainer: palette.surfaceHigh,
+    surfaceContainerHigh: palette.surfacePressed,
     surfaceContainerHighest: palette.surfaceHigh,
     onSurface: palette.textPrimary,
     onSurfaceVariant: palette.textSecondary,
@@ -252,11 +311,11 @@ ThemeData _buildTheme(CueBoxThemeMode mode) {
       color: palette.surface,
       surfaceTintColor: Colors.transparent,
       // 玻璃主题：微浮起 + 柔和阴影，更像真实的玻璃层。
-      elevation: glass ? 1 : 0,
-      shadowColor: glass ? const Color(0x330A84FF) : Colors.transparent,
+      elevation: glass ? 2 : 1,
+      shadowColor: glass ? const Color(0x3D0A84FF) : const Color(0x59000000),
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(glass ? 22 : 18),
+        borderRadius: BorderRadius.circular(glass ? 24 : 18),
         side: BorderSide(color: palette.border),
       ),
     ),
@@ -322,6 +381,7 @@ ThemeData _buildTheme(CueBoxThemeMode mode) {
     listTileTheme: ListTileThemeData(
       iconColor: palette.textSecondary,
       textColor: palette.textPrimary,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
 
     dividerTheme: DividerThemeData(
@@ -336,15 +396,23 @@ ThemeData _buildTheme(CueBoxThemeMode mode) {
       modalBackgroundColor: palette.surfaceHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(glass ? 32 : 28)),
+        side: BorderSide(color: glass ? const Color(0x99FFFFFF) : palette.border),
       ),
       showDragHandle: true,
-      dragHandleColor: Color(0x33000000),
+      dragHandleColor: glass
+          ? const Color(0x330A84FF)
+          : const Color(0x33000000),
     ),
 
     dialogTheme: DialogThemeData(
       backgroundColor: palette.surfaceHigh,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(glass ? 28 : 24)),
+      elevation: glass ? 8 : 4,
+      shadowColor: glass ? const Color(0x330A84FF) : const Color(0x66000000),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(glass ? 28 : 24),
+        side: BorderSide(color: glass ? const Color(0x99FFFFFF) : palette.border),
+      ),
     ),
 
     snackBarTheme: SnackBarThemeData(

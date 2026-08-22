@@ -101,8 +101,15 @@ class _MediaLibraryPageState extends ConsumerState<MediaLibraryPage> {
     return Container(
       width: 300,
       decoration: BoxDecoration(
-        color: CueBoxColors.surface.withValues(alpha: 0.55),
+        gradient: CueBoxColors.surfaceGradient,
         border: Border(right: BorderSide(color: CueBoxColors.border)),
+        boxShadow: [
+          BoxShadow(
+            color: CueBoxColors.cardShadowColor,
+            blurRadius: 16,
+            offset: Offset(-4, 0),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -762,8 +769,15 @@ class _SelectionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: CueBoxColors.surfaceHigh.withValues(alpha: 0.92),
+        gradient: CueBoxColors.surfaceGradient,
         border: Border(top: BorderSide(color: CueBoxColors.border)),
+        boxShadow: [
+          BoxShadow(
+            color: CueBoxColors.cardShadowColor,
+            blurRadius: 18,
+            offset: Offset(0, -4),
+          ),
+        ],
       ),
       padding: EdgeInsets.fromLTRB(16, 10, 16, 12),
       child: SafeArea(
@@ -1011,7 +1025,10 @@ class _FolderTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: CueBoxColors.surface,
+      elevation: CueBoxColors.isGlass ? 2 : 1,
+      shadowColor: CueBoxColors.cardShadowColor,
       borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -1121,6 +1138,23 @@ class _AudioTile extends ConsumerWidget {
     return AnimatedContainer(
       duration: Duration(milliseconds: 200),
       decoration: BoxDecoration(
+        gradient: highlight
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  CueBoxColors.secondary.withValues(alpha: 0.14),
+                  CueBoxColors.surfaceHigh,
+                ],
+              )
+            : (previewing
+                  ? LinearGradient(
+                      colors: [
+                        CueBoxColors.primary.withValues(alpha: 0.12),
+                        CueBoxColors.surfaceHigh,
+                      ],
+                    )
+                  : CueBoxColors.surfaceGradient),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: highlight
@@ -1128,19 +1162,12 @@ class _AudioTile extends ConsumerWidget {
               : (previewing
                     ? CueBoxColors.primary
                     : CueBoxColors.border),
-          width: highlight || previewing ? 1.3 : 1,
+          width: highlight || previewing ? 1.4 : 1,
         ),
-        boxShadow: highlight || previewing
-            ? [
-                BoxShadow(
-                  color: (highlight
-                          ? CueBoxColors.secondary
-                          : CueBoxColors.primary)
-                      .withValues(alpha: 0.10),
-                  blurRadius: 20,
-                ),
-              ]
-            : null,
+        boxShadow: [
+          CueBoxColors.ambientShadow,
+          if (highlight || previewing) CueBoxColors.selectionGlow,
+        ],
       ),
       child: Material(
         color: highlight
